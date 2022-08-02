@@ -39,21 +39,15 @@ class ExamBcmpPost(Resource):
 
         json_data = request.get_json()
 
-        if 'bookdata' in json_data.keys():
-            booking = json_data["bookdata"]
-        else:
-            booking = None
-
+        booking = json_data["bookdata"] if 'bookdata' in json_data.keys() else None
         exam = self.exam_schema.load(json_data)
-        warning = self.exam_schema.validate(json_data)
-
-        if warning:
+        if warning := self.exam_schema.validate(json_data):
             logging.warning("WARNING: %s", warning)
             return {"message": warning}, 422
-        
-        if not (exam.office_id == csr.office_id or csr.ita2_designate == 1):
+
+        if exam.office_id != csr.office_id and csr.ita2_designate != 1:
             return {"The Exam Office ID and CSR Office ID do not match!"}, 403   
-            
+
         formatted_data = ExamPost.format_data(self, json_data, exam)
         exam = formatted_data["exam"]
 
@@ -63,9 +57,9 @@ class ExamBcmpPost(Resource):
 
         bcmp_response = None
         if json_data["ind_or_group"] == "individual":
-            
+
             exam_fees = json_data["fees"]
-            
+
             logging.info("Creating individual pesticide exam")
             bcmp_response = self.bcmp_service.create_individual_exam(exam, exam_fees, invigilator, formatted_data["pesticide_office"], g.jwt_oidc_token_info)
 
@@ -73,8 +67,8 @@ class ExamBcmpPost(Resource):
 
             logging.info("Creating Group pesticide exam")
             bcmp_response = self.bcmp_service.create_group_exam_bcmp(exam, booking, formatted_data["candidates_list_bcmp"], invigilator, formatted_data["pesticide_office"], g.jwt_oidc_token_info)
-            
-            
+
+
         if bcmp_response:
             return {"bcmp_job_id": bcmp_response['jobId'],
                 "errors": {}}, 201

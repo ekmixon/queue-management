@@ -43,15 +43,18 @@ class CitizenRemoveFromQueue(Resource):
         citizen = Citizen.query.filter_by(citizen_id=id).first()
         active_service_request = citizen.get_active_service_request()
 
-        my_print("==> POST /citizens/" + str(citizen.citizen_id) + '/remove_from_queue, Ticket: ' + citizen.ticket_number)
+        my_print(
+            f"==> POST /citizens/{str(citizen.citizen_id)}/remove_from_queue, Ticket: {citizen.ticket_number}"
+        )
+
 
         if active_service_request is None:
             return {"message": "Citizen has no active service requests"}
 
         appointment = Appointment.query.filter_by(citizen_id=id) \
-            .filter_by(office_id=csr.office_id) \
-            .filter(Appointment.checked_in_time.isnot(None)) \
-            .first_or_404()
+                .filter_by(office_id=csr.office_id) \
+                .filter(Appointment.checked_in_time.isnot(None)) \
+                .first_or_404()
 
         # This "un-check-in"s the appointment, returning it to calendar and removing from the queue.
         appointment.checked_in_time = None
@@ -68,7 +71,7 @@ class CitizenRemoveFromQueue(Resource):
         #     return {"message": warning}, 422
 
         socketio.emit('update_customer_list', {}, room=csr.office_id)
-        socketio.emit('citizen_invited', {}, room='sb-%s' % csr.office.office_number)
+        socketio.emit('citizen_invited', {}, room=f'sb-{csr.office.office_number}')
         result = self.appointment_schema.dump(appointment)
 
         if not application.config['DISABLE_AUTO_REFRESH']:

@@ -32,7 +32,7 @@ class Categories(Resource):
         #  Get the path name where to put the file, form where manifest, new file name are
         fullpath = os.path.dirname(os.path.abspath(__file__))
         end = fullpath.find("/app/")
-        uploadpath = fullpath[:end] + "/videos" # /api/static/videos/
+        uploadpath = f"{fullpath[:end]}/videos"
         form = request.form.to_dict()
 
         #  Make the directory if it doesn't already exist.
@@ -40,8 +40,8 @@ class Categories(Resource):
             if not os.path.isdir(uploadpath):
                 os.mkdir(uploadpath)
         except Exception as error:
-            print("==> Error trying to create directory: " + uploadpath)
-            print("    --> Message: " + str(error))
+            print(f"==> Error trying to create directory: {uploadpath}")
+            print(f"    --> Message: {str(error)}")
 
         #   Save uploaded video file
         for file in request.files.getlist("file"):
@@ -52,14 +52,14 @@ class Categories(Resource):
                 #  If the filename doesn't end in .mp4, then add .mp4 as an extension
                 file_name, file_extension = os.path.splitext(filename)
                 if file_extension.lower() != '.mp4':
-                    filename = filename + ".mp4"
+                    filename = f"{filename}.mp4"
 
             destination = "/".join([uploadpath, filename])
             try:
                 file.save(destination)
             except Exception as error:
-                print("==> Error trying to save file: " + filename)
-                print("    --> Message: " + str(error))
+                print(f"==> Error trying to save file: {filename}")
+                print(f"    --> Message: {str(error)}")
 
         #  Get and save the updated manifest.
         data = form.get("manifest")
@@ -69,5 +69,5 @@ class Categories(Resource):
             with open(output_file, "w") as myfile:
                 myfile.write(data)
         except Exception as error:
-            print("==> Error trying to update file: " + output_file)
-            print("    --> Message: " + str(error))
+            print(f"==> Error trying to update file: {output_file}")
+            print(f"    --> Message: {str(error)}")

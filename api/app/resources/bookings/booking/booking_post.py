@@ -41,43 +41,42 @@ class BookingPost(Resource):
             return {"message": "No input data received for creating a booking"}, 400
 
         booking = self.booking_schema.load(json_data)
-        warning = self.booking_schema.validate(json_data)
-
-        if warning:
+        if warning := self.booking_schema.validate(json_data):
             logging.warning("WARNING: %s", warning)
             return {"message": warning}, 422
 
         if booking.office_id is None:
             booking.office_id = csr.office_id
 
-        if booking.office_id == csr.office_id or csr.ita2_designate == 1 or json_data.get('for_stat', False):
-
-            if i_id is None:
-
-                db.session.add(booking)
-                db.session.commit()
-
-            elif type(i_id) == int:
-
-                booking.invigilators.append(Invigilator.query.filter_by(invigilator_id=i_id).first_or_404())
-                db.session.add(booking)
-                db.session.commit()
-            
-            elif type(i_id) == list:
-
-                if len(i_id) == 0:
-                    db.session.add(booking)
-                    db.session.commit()
-
-                else:
-                    for value in i_id:
-                        booking.invigilators.append(Invigilator.query.filter_by(invigilator_id=value).first_or_404())
-                        db.session.add(booking)
-                        db.session.commit()
-
-            result = self.booking_schema.dump(booking)
-
-            return {"booking": result,
-                    "errors": self.booking_schema.validate(booking)}, 201
-        else:
+        if (
+            booking.office_id != csr.office_id
+            and csr.ita2_designate != 1
+            and not json_data.get('for_stat', False)
+        ):
             return {"The Booking Office ID and CSR Office ID do not match!"}, 403
+        if (
+            i_id is not None
+            and type(i_id) != int
+            and type(i_id) == list
+            and len(i_id) == 0
+            or i_id is None
+        ):
+            db.session.add(booking)
+            db.session.commit()
+
+        elif type(i_id) != int and type(i_id) == list:
+            for value in i_id:
+                booking.invigilators.append(Invigilator.query.filter_by(invigilator_id=value).first_or_404())
+                db.session.add(booking)
+                db.session.commit()
+
+        elif type(i_id) == int:
+
+            booking.invigilators.append(Invigilator.query.filter_by(invigilator_id=i_id).first_or_404())
+            db.session.add(booking)
+            db.session.commit()
+
+        result = self.booking_schema.dump(booking)
+
+        return {"booking": result,
+                "errors": self.booking_schema.validate(booking)}, 201

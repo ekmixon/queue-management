@@ -39,10 +39,13 @@ class WalkinDetail(Resource):
 
     def get(self, id):
         try:
-            citizen = Citizen.query.filter_by(walkin_unique_id=id).join(CitizenState)\
-                                            .filter(CitizenState.cs_state_name == 'Active')\
-                                            .order_by(Citizen.citizen_id.desc()).first()
-            if citizen:
+            if (
+                citizen := Citizen.query.filter_by(walkin_unique_id=id)
+                .join(CitizenState)
+                .filter(CitizenState.cs_state_name == 'Active')
+                .order_by(Citizen.citizen_id.desc())
+                .first()
+            ):
                 res_list = []
                 # office time zone
                 local_timezone = self.get_my_office_timezone(citizen = citizen)
@@ -51,7 +54,7 @@ class WalkinDetail(Resource):
                 am_on_hold = self.am_i_on_hold(citizen)
 
                 show_estimate = application.config.get('SHOW_ESTIMATE_TIME_WALKIN', False)
-                
+
                 # result= all citizen in q
                 result = self.get_all_citizen_in_q(citizen = citizen)
                 # process result
@@ -62,7 +65,7 @@ class WalkinDetail(Resource):
                 result_in_book = self.get_all_app_from_agenda_panel(citizen=citizen)
                 # processing agenda panel appointmnets:
                 booked_not_checkin = self.process_agenda_panel(result_in_book, local_timezone)
-                
+
                 # sorting-maintaing the order group 
                 # res_list = tuple(serving_app + booked_check_app + booked_not_checkin + walkin_app)
                 # serving people dont want see
@@ -76,15 +79,14 @@ class WalkinDetail(Resource):
 
     def get_my_office_timezone(self, citizen=False, office=False):
         office_id = False
-        local_timezone = False 
+        local_timezone = False
         if citizen:
             office_id = citizen.office_id
         if office:
             office_id = office.office_id
         if office_id:
             my_office = Office.query.filter_by(office_id=office_id).first()
-            my_office_data = self.office_schema.dump(my_office)
-            if my_office_data:
+            if my_office_data := self.office_schema.dump(my_office):
                 my_time_zone = my_office_data['timezone']['timezone_name']
                 local_timezone = pytz.timezone(my_time_zone)
         return local_timezone
@@ -94,8 +96,9 @@ class WalkinDetail(Resource):
         am_on_hold = False
         citizen_service_reqs = my_result.get('service_reqs', [])
         for j in citizen_service_reqs:
-            my_served_period = sorted(j['periods'], key= lambda x:x['period_id'], reverse=True)[0]
-            if my_served_period:
+            if my_served_period := sorted(
+                j['periods'], key=lambda x: x['period_id'], reverse=True
+            )[0]:
                 if (my_served_period['ps']['ps_name'] == 'On hold'):
                     am_on_hold = True
         return am_on_hold
@@ -109,10 +112,10 @@ class WalkinDetail(Resource):
             office_id = office.office_id
         if office_id:  
             all_citizen_in_q = Citizen.query.filter_by(office_id=office_id) \
-                                            .join(CitizenState)\
-                                            .filter(CitizenState.cs_state_name == 'Active')\
-                                            .order_by(Citizen.priority) \
-                                            .join(Citizen.service_reqs).all()
+                                                .join(CitizenState)\
+                                                .filter(CitizenState.cs_state_name == 'Active')\
+                                                .order_by(Citizen.priority) \
+                                                .join(Citizen.service_reqs).all()
             result = self.citizens_schema.dump(all_citizen_in_q)
         return result
 
@@ -124,8 +127,9 @@ class WalkinDetail(Resource):
             data_dict = {}
             if bool(each.get('service_reqs', False)):
                 for i in each['service_reqs']:
-                    served_period = sorted(i['periods'], key= lambda x:x['period_id'], reverse=True)[0]
-                    if served_period:
+                    if served_period := sorted(
+                        i['periods'], key=lambda x: x['period_id'], reverse=True
+                    )[0]:
                         # if served_period['ps']['ps_name'] == 'Being Served':
                         #     data_dict['flag'] = 'serving_app'
                         #     data_dict['ticket_number'] = each.get('ticket_number', '')
@@ -137,9 +141,8 @@ class WalkinDetail(Resource):
                         #     break
                         if (not (served_period['time_end']) and (served_period['ps']['ps_name'] in ('Waiting', 'Invited'))):
                             not_booked_flag = False
-                            data_dict = {}
-                            data_dict['ticket_number'] = each.get('ticket_number', '')
-                            data_dict['walkin_unique_id'] = each.get('walkin_unique_id', '') 
+                            data_dict = {'ticket_number': each.get('ticket_number', '')}
+                            data_dict['walkin_unique_id'] = each.get('walkin_unique_id', '')
                             if (each.get('citizen_comments', '')):
                                 if '|||' in each['citizen_comments']:
                                     data_dict['flag'] = 'booked_app'
@@ -150,25 +153,26 @@ class WalkinDetail(Resource):
                                     not_booked_flag = True
                             else:
                                 not_booked_flag = True
-                            if not_booked_flag and each.get('cs', False):
-                                if each['cs'].get('cs_state_name', '') == 'Active':
-                                    each_time_obj = datetime.strptime(each['start_time'], '%Y-%m-%dT%H:%M:%SZ')
-                                    # citizen_start_obj = datetime.strptime(citizen.start_time.strftime('%Y-%m-%dT%H:%M:%SZ'), '%Y-%m-%dT%H:%M:%SZ')
-                                    # start
-                                    local_datetime_start = each_time_obj.replace(tzinfo=pytz.utc).astimezone(local_timezone)
-                                    #end
-                                    local_datetime_end = citizen.start_time.replace(tzinfo=pytz.utc).astimezone(local_timezone)                                    
-                                    if am_on_hold:
-                                        data_dict['flag'] = 'walkin_app'
-                                        walkin_app.append(data_dict)
-                                        data_dict = {}
-                                        break
-                                    else:
-                                        if local_datetime_start <= local_datetime_end:
-                                            data_dict['flag'] = 'walkin_app'
-                                            walkin_app.append(data_dict)
-                                            data_dict = {}
-                                            break
+                            if (
+                                not_booked_flag
+                                and each.get('cs', False)
+                                and each['cs'].get('cs_state_name', '') == 'Active'
+                            ):
+                                each_time_obj = datetime.strptime(each['start_time'], '%Y-%m-%dT%H:%M:%SZ')
+                                # citizen_start_obj = datetime.strptime(citizen.start_time.strftime('%Y-%m-%dT%H:%M:%SZ'), '%Y-%m-%dT%H:%M:%SZ')
+                                # start
+                                local_datetime_start = each_time_obj.replace(tzinfo=pytz.utc).astimezone(local_timezone)
+                                #end
+                                local_datetime_end = citizen.start_time.replace(tzinfo=pytz.utc).astimezone(local_timezone)
+                                if (
+                                    not am_on_hold
+                                    and local_datetime_start <= local_datetime_end
+                                    or am_on_hold
+                                ):
+                                    data_dict['flag'] = 'walkin_app'
+                                    walkin_app.append(data_dict)
+                                    data_dict = {}
+                                    break
         # return serving_app, booked_check_app, walkin_app
         return booked_check_app, walkin_app
     
@@ -186,12 +190,15 @@ class WalkinDetail(Resource):
             local_past = pytz.utc.localize(past_hour)
             local_future = pytz.utc.localize(future_hour)
             # getting agenda panel app
-            appointments = Appointment.query.filter_by(office_id=office_id)\
-                                        .filter(Appointment.start_time <= local_future)\
-                                        .filter(Appointment.start_time >= local_past)\
-                                        .filter(Appointment.checked_in_time == None)\
-                                        .order_by(Appointment.start_time)\
-                                        .all()
+            appointments = (
+                Appointment.query.filter_by(office_id=office_id)
+                .filter(Appointment.start_time <= local_future)
+                .filter(Appointment.start_time >= local_past)
+                .filter(Appointment.checked_in_time is None)
+                .order_by(Appointment.start_time)
+                .all()
+            )
+
             result_in_book = self.appointment_schema.dump(appointments)
         return result_in_book
 
@@ -199,13 +206,15 @@ class WalkinDetail(Resource):
         booked_not_checkin = []
         for app in result_in_book:
             if not (app.get('is_draft', True)) and (app.get('blackout_flag', 'N') == 'N')  and not (app.get('stat_flag', True)):
-                data_dict = {}
-                data_dict['flag'] = 'agenda_panel'
-                data_dict['start_time'] = app.get('start_time',  '')
+                data_dict = {'flag': 'agenda_panel', 'start_time': app.get('start_time', '')}
                 if data_dict['start_time'] and local_timezone:
-                    if (len(data_dict['start_time']) >= 3):
-                        if ':' in data_dict['start_time'][-3]:
-                            data_dict['start_time'] = '{}{}'.format(data_dict['start_time'][:-3], data_dict['start_time'][-2:])
+                    if (len(data_dict['start_time']) >= 3) and ':' in data_dict[
+                        'start_time'
+                    ][-3]:
+                        data_dict[
+                            'start_time'
+                        ] = f"{data_dict['start_time'][:-3]}{data_dict['start_time'][-2:]}"
+
                     utc_datetime = datetime.strptime(data_dict['start_time'], '%Y-%m-%dT%H:%M:%S%z')
                     local_datetime = utc_datetime.replace(tzinfo=pytz.utc)
                     local_datetime = local_datetime.astimezone(local_timezone)
@@ -225,41 +234,39 @@ class SendLineReminderWalkin(Resource):
         try:
             result = []
             json_data = request.get_json()
-            previous_citizen_id = json_data.get('previous_citizen_id', False)
-            if previous_citizen_id:
+            if previous_citizen_id := json_data.get('previous_citizen_id', False):
                 previous_citizen = Citizen.query.filter_by(citizen_id=previous_citizen_id).first()
                 # get nth line
                 nth_line = self.get_nth_line(previous_citizen)
 
                 # get all in Q + Agenda panel
                 res_list = []
-                
+
                 # result= all citizen in q
                 result = self.walkinObj.get_all_citizen_in_q(citizen = previous_citizen)
                 # process result
                 # am_on_true= means get all citizen in Q
                 booked_check_app, walkin_app = self.process_all_citizen_in_q(result)
-                
+
                 # sorting-maintaing the order group 
                 res_list = tuple(booked_check_app + walkin_app)
                 # get the nth object in checkedin and walkin list
                 # bool checks for both False and 0
                 nth_app = False
-                if nth_line:
-                    if len(res_list) >= int(nth_line) and (int(nth_line) > 0):
-                        nth_app = res_list[int(nth_line)-1]
-                        if nth_app['citizen_id']:
-                            citizen = Citizen.query.filter_by(citizen_id=nth_app['citizen_id']).first()
-                            if (not (citizen.automatic_reminder_flag) or (citizen.automatic_reminder_flag == 0)):
-                                officeObj = Office.find_by_id(citizen.office_id)
-                                if citizen.notification_phone:
-                                    citizen = self.send_sms_reminder(citizen, officeObj)
-                                    citizen.automatic_reminder_flag = 1
-                                if citizen.notification_email:
-                                    citizen = self.send_email_reminder(citizen, officeObj)
-                                    citizen.automatic_reminder_flag = 1
-                                db.session.add(citizen)
-                                db.session.commit()
+                if nth_line and len(res_list) >= int(nth_line) > 0:
+                    nth_app = res_list[int(nth_line)-1]
+                    if nth_app['citizen_id']:
+                        citizen = Citizen.query.filter_by(citizen_id=nth_app['citizen_id']).first()
+                        if (not (citizen.automatic_reminder_flag) or (citizen.automatic_reminder_flag == 0)):
+                            officeObj = Office.find_by_id(citizen.office_id)
+                            if citizen.notification_phone:
+                                citizen = self.send_sms_reminder(citizen, officeObj)
+                                citizen.automatic_reminder_flag = 1
+                            if citizen.notification_email:
+                                citizen = self.send_email_reminder(citizen, officeObj)
+                                citizen.automatic_reminder_flag = 1
+                            db.session.add(citizen)
+                            db.session.commit()
 
                 result = self.citizen_schema.dump(previous_citizen)
             return {'citizen': result,
@@ -269,11 +276,11 @@ class SendLineReminderWalkin(Resource):
 
     def get_nth_line(self, citizen):
         my_office = Office.query.filter_by(office_id=citizen.office_id).first()
-        my_office_data = self.office_schema.dump(my_office)
-        nth_line = False
-        if my_office_data:
-            nth_line = my_office_data.get('automatic_reminder_at', False)
-        return nth_line
+        return (
+            my_office_data.get('automatic_reminder_at', False)
+            if (my_office_data := self.office_schema.dump(my_office))
+            else False
+        )
 
     def process_all_citizen_in_q(self, result):
         booked_check_app = []
@@ -282,12 +289,12 @@ class SendLineReminderWalkin(Resource):
             data_dict = {}
             if bool(each.get('service_reqs', False)):
                 for i in each['service_reqs']:
-                    served_period = sorted(i['periods'], key= lambda x:x['period_id'], reverse=True)[0]
-                    if served_period:
+                    if served_period := sorted(
+                        i['periods'], key=lambda x: x['period_id'], reverse=True
+                    )[0]:
                         if (not (served_period['time_end']) and (served_period['ps']['ps_name'] in ('Waiting', 'Invited'))):
                             not_booked_flag = False
-                            data_dict = {}
-                            data_dict['citizen_id'] = each.get('citizen_id', False)
+                            data_dict = {'citizen_id': each.get('citizen_id', False)}
                             data_dict['service_name'] = i['service']['parent']['service_name']
                             if (each.get('citizen_comments', '')):
                                 if '|||' in each['citizen_comments']:
@@ -299,50 +306,46 @@ class SendLineReminderWalkin(Resource):
                                     not_booked_flag = True
                             else:
                                 not_booked_flag = True
-                            if not_booked_flag and each.get('cs', False):
-                                if each['cs'].get('cs_state_name', '') == 'Active':
-                                    data_dict['flag'] = 'walkin_app'
-                                    data_dict['created_at'] = each.get('created_at', '')
-                                    walkin_app.append(data_dict)
-                                    data_dict = {}
-                                    break
+                            if (
+                                not_booked_flag
+                                and each.get('cs', False)
+                                and each['cs'].get('cs_state_name', '') == 'Active'
+                            ):
+                                data_dict['flag'] = 'walkin_app'
+                                data_dict['created_at'] = each.get('created_at', '')
+                                walkin_app.append(data_dict)
+                                data_dict = {}
+                                break
         return booked_check_app, walkin_app
 
     def send_sms_reminder(self, citizen, officeObj):
         data_values = {}
-        if (citizen.notification_phone):
-            sms_sent = False
-            validate_check = True
-            # code/function call to send sms notification,
-            if citizen.reminder_flag:
-                if (citizen.reminder_flag == 2):
-                    validate_check =  False
+        if citizen.notification_phone:
+            validate_check = not citizen.reminder_flag or citizen.reminder_flag != 2
             if validate_check:
-                sms_sent = send_walkin_reminder_sms(citizen, officeObj, request.headers['Authorization'].replace('Bearer ', ''))
-                if (sms_sent):
-                    flag_value = 1
-                    if citizen.reminder_flag == 1:
-                        flag_value = 2
+                sms_sent = False
+                if sms_sent := send_walkin_reminder_sms(
+                    citizen,
+                    officeObj,
+                    request.headers['Authorization'].replace('Bearer ', ''),
+                ):
+                    flag_value = 2 if citizen.reminder_flag == 1 else 1
                     citizen.reminder_flag = flag_value
                     citizen.notification_sent_time = datetime.utcnow()
         return citizen
                 
     
     def send_email_reminder(self, citizen, officeObj):
-        if (citizen.notification_email):
+        if citizen.notification_email:
             # code/function call to send first email notification,
             email_sent = False
-            validate_check = True
-            if citizen.reminder_flag:
-                if (citizen.reminder_flag == 2):
-                    validate_check =  False
+            validate_check = not citizen.reminder_flag or citizen.reminder_flag != 2
             if validate_check:
-                email_sent = get_walkin_reminder_email_contents(citizen, officeObj)
-                if email_sent:
+                if email_sent := get_walkin_reminder_email_contents(
+                    citizen, officeObj
+                ):
                     status = send_email(request.headers['Authorization'].replace('Bearer ', ''), *email_sent)
-                    flag_value = 1
-                    if citizen.reminder_flag == 1:
-                        flag_value = 2
+                    flag_value = 2 if citizen.reminder_flag == 1 else 1
                     citizen.reminder_flag = flag_value
                     citizen.notification_sent_time = datetime.utcnow()
         return citizen
@@ -369,12 +372,11 @@ class SmartBoradQDetails(Resource):
                 result = self.walkinObj.get_all_citizen_in_q(office = office)
                 # process result
                 booked_check_app, walkin_app = self.processObj.process_all_citizen_in_q(result)
-                
+
                 # sorting-maintaing the order group 
                 res_list = tuple(booked_check_app + walkin_app)
 
             return {'citizen_in_q': res_list}, 200
-            return {}
         except exc.SQLAlchemyError as e:
             print(e)
             return {'message': 'API is down'}, 500
@@ -404,9 +406,8 @@ class SmartBoradQDetails(Resource):
                 result_in_book = self.walkinObj.get_all_app_from_agenda_panel(office = office)
                 # processing agenda panel appointmnets:
                 booked_not_checkin = self.walkinObj.process_agenda_panel(result_in_book, local_timezone)
-                
+
             return {'booked_not_checkin': booked_not_checkin}, 200
-            return {}
         except exc.SQLAlchemyError as e:
             print(e)
             return {'message': 'API is down'}, 500

@@ -40,6 +40,4 @@ def send_email(token, subject, email, sender, html_body):
 
 def is_valid_email(email: str):
     """Return if the email is valid or not."""
-    if email:
-        return re.match(r'[^@]+@[^@]+\.[^@]+', email) is not None
-    return False
+    return re.match(r'[^@]+@[^@]+\.[^@]+', email) is not None if email else False

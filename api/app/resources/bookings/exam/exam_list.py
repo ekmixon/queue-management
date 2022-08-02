@@ -40,23 +40,23 @@ class ExamList(Resource):
             if csr.ita2_designate == 1:
                 if request.args and request.args.get("office_number"):
                     exams = Exam.query.filter(Exam.deleted_date.is_(None)) \
-                        .filter(or_(Exam.exam_returned_date.is_(None),
+                            .filter(or_(Exam.exam_returned_date.is_(None),
                                     Exam.exam_returned_date > ninety_day_filter)) \
-                        .join(Exam.office, aliased=True) \
-                        .filter_by(office_number=request.args.get("office_number")) \
-                        .order_by(desc(Exam.exam_id))
+                            .join(Exam.office, aliased=True) \
+                            .filter_by(office_number=request.args.get("office_number")) \
+                            .order_by(desc(Exam.exam_id))
                 else:
                     exams = Exam.query.filter(Exam.deleted_date.is_(None)) \
-                                      .filter(or_(Exam.exam_returned_date.is_(None),
+                                          .filter(or_(Exam.exam_returned_date.is_(None),
                                                   Exam.exam_returned_date > ninety_day_filter)) \
-                                      .order_by(desc(Exam.exam_id))
+                                          .order_by(desc(Exam.exam_id))
 
             else:
                 exams = Exam.query.filter(Exam.deleted_date.is_(None))\
-                                  .filter_by(office_id=csr.office_id)\
-                                  .filter(or_(Exam.exam_returned_date.is_(None),
+                                      .filter_by(office_id=csr.office_id)\
+                                      .filter(or_(Exam.exam_returned_date.is_(None),
                                               Exam.exam_returned_date > ninety_day_filter))\
-                                  .order_by(desc(Exam.exam_id))
+                                      .order_by(desc(Exam.exam_id))
 
             search_kwargs = {}
 

@@ -33,7 +33,10 @@ class CitizenPlaceOnHold(Resource):
         csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
 
         citizen = Citizen.query.filter_by(citizen_id=id, office_id=csr.office_id).first()
-        my_print("==> POST /citizens/" + str(citizen.citizen_id) + '/place_on_hold/, Ticket: ' + citizen.ticket_number)
+        my_print(
+            f"==> POST /citizens/{str(citizen.citizen_id)}/place_on_hold/, Ticket: {citizen.ticket_number}"
+        )
+
         active_service_request = citizen.get_active_service_request()
 
         if active_service_request is None:

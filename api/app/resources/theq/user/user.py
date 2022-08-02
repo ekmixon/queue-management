@@ -40,9 +40,8 @@ class PublicUsers(Resource):
                 user = PublicUserModel()
                 user.username = user_info.get('username')
                 user.email = user_info.get('email')
-            else:  # update email only if the email is None for existing user
-                if not user.email:
-                    user.email = user_info.get('email')
+            elif not user.email:
+                user.email = user_info.get('email')
             user.display_name = user_info.get('display_name')
             user.last_name = user_info.get('last_name')
             db.session.add(user)

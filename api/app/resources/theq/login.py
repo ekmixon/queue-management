@@ -28,28 +28,26 @@ class Login(Resource):
     def get(self):
         claims = g.jwt_oidc_token_info
 
-        if claims["preferred_username"]:
-            csr = CSR.find_by_username(claims["preferred_username"])
-            if csr:
-                if csr.deleted is None:
-                    csr.is_active = True
-                else:
-                    csr.is_active = False
-
-                csr.is_authenticated = False
-                csr.is_anonymous = False
-
-                login_user(csr)
-                if application.config['USE_HTTPS']:
-                    return redirect(url_for("admin.index",
-                                            _scheme=application.config['PREFERRED_URL_SCHEME'],
-                                            _external=application.config['USE_HTTPS']))
-                else:
-                    return redirect(url_for("admin.index"))
-            else:
-                return abort(401, self.auth_string)
-        else:
+        if not claims["preferred_username"]:
             return abort(401, self.auth_string)
+        if not (csr := CSR.find_by_username(claims["preferred_username"])):
+            return abort(401, self.auth_string)
+        csr.is_active = csr.deleted is None
+        csr.is_authenticated = False
+        csr.is_anonymous = False
+
+        login_user(csr)
+        return (
+            redirect(
+                url_for(
+                    "admin.index",
+                    _scheme=application.config['PREFERRED_URL_SCHEME'],
+                    _external=application.config['USE_HTTPS'],
+                )
+            )
+            if application.config['USE_HTTPS']
+            else redirect(url_for("admin.index"))
+        )
 
 
 @api.route("/logout/", methods=["GET"])

@@ -80,21 +80,21 @@ class CsrSelf(Resource):
             # print('====> ATTENTION NEEDED==>start_Date',start_date)
 
             active_citizens = Citizen.query \
-                .join(Citizen.service_reqs) \
-                .filter_by(sr_state_id=active_sr_state.sr_state_id) \
-                .join(ServiceReq.periods) \
-                .filter_by(csr_id=csr.csr_id) \
-                .filter(Period.time_end.is_(None))
+                    .join(Citizen.service_reqs) \
+                    .filter_by(sr_state_id=active_sr_state.sr_state_id) \
+                    .join(ServiceReq.periods) \
+                    .filter_by(csr_id=csr.csr_id) \
+                    .filter(Period.time_end.is_(None))
 
             #   Get a list of all current exams for the office.
             office_exams = Exam.query \
-                .filter(Exam.office_id == csr.office_id, \
-                        Exam.exam_returned_date.is_(None), \
-                        Exam.deleted_date.is_(None)) \
-                .join(ExamType, Exam.exam_type_id == ExamType.exam_type_id) \
-                .outerjoin(Booking, Exam.booking_id == Booking.booking_id) \
-                .outerjoin(Booking.booking_invigilators, Booking.booking_id == Booking.booking_invigilators.c.invigilator_id) \
-                .all()
+                    .filter(Exam.office_id == csr.office_id, \
+                            Exam.exam_returned_date.is_(None), \
+                            Exam.deleted_date.is_(None)) \
+                    .join(ExamType, Exam.exam_type_id == ExamType.exam_type_id) \
+                    .outerjoin(Booking, Exam.booking_id == Booking.booking_id) \
+                    .outerjoin(Booking.booking_invigilators, Booking.booking_id == Booking.booking_invigilators.c.invigilator_id) \
+                    .all()
 
             #   Default condition ... attention is not needed for any exam.
             attention_needed = False
@@ -129,9 +129,9 @@ class CsrSelf(Resource):
                         individual.append(exam)
 
 
-            #   Only do further checks if attention not already needed.
-            group = []
             if not attention_needed:
+                #   Only do further checks if attention not already needed.
+                group = []
                 for exam in office_exams:
                     if exam.exam_type.group_exam_ind == 1:
                         # print('====> GROUP EXAM CHECKS',exam.exam_name)

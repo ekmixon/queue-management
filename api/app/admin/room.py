@@ -43,14 +43,14 @@ class RoomConfig(Base):
             today_aware = pytz.utc.localize(today)
 
             booking_room = Booking.query.filter_by(room_id=room_id)\
-                                        .filter(Booking.start_time > today_aware).count()
+                                            .filter(Booking.start_time > today_aware).count()
 
             specific_room = Room.query.filter_by(room_id=room_id).first()
             room_name = specific_room.room_name
 
             if model.deleted is not None and booking_room > 0:
                 message = "'" + room_name + "' is currently being used for bookings. " \
-                                        "Reschedule bookings that use this room before setting the deleted date."
+                                            "Reschedule bookings that use this room before setting the deleted date."
                 flash(gettext(message), 'warning')
                 model.deleted = None
                 form.deleted.data = None

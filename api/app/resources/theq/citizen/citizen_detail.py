@@ -38,7 +38,10 @@ class CitizenDetail(Resource):
             citizen_ticket = "None"
             if hasattr(citizen, 'ticket_number'):
                 citizen_ticket = str(citizen.ticket_number)
-            my_print("==> GET /citizens/" + str(citizen.citizen_id) + '/, Ticket: ' + citizen_ticket)
+            my_print(
+                f"==> GET /citizens/{str(citizen.citizen_id)}/, Ticket: {citizen_ticket}"
+            )
+
             result = self.citizen_schema.dump(citizen)
             return {'citizen': result,
                     'errors': self.citizen_schema.validate(citizen)}
@@ -60,7 +63,10 @@ class CitizenDetail(Resource):
 
         csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
         citizen = Citizen.query.filter_by(citizen_id=id).first()
-        my_print("==> PUT /citizens/" + str(citizen.citizen_id) + '/, Ticket: ' + str(citizen.ticket_number))
+        my_print(
+            f"==> PUT /citizens/{str(citizen.citizen_id)}/, Ticket: {str(citizen.ticket_number)}"
+        )
+
         if not ((json_data.get('is_first_reminder', False) or json_data.get('is_second_reminder', False))):
             try:
                 citizen = self.citizen_schema.load(json_data, instance=citizen, partial=True)
@@ -70,33 +76,29 @@ class CitizenDetail(Resource):
             try:
                 data_values = {}
                 officeObj = Office.find_by_id(citizen.office_id)
-                if (citizen.notification_phone):
+                if citizen.notification_phone:
                     sms_sent = False
                     # code/function call to send sms notification,
                     sms_sent = send_walkin_reminder_sms(citizen, officeObj, request.headers['Authorization'].replace('Bearer ', ''))
-                    if (json_data.get('is_first_reminder', False)):
-                        if (sms_sent):
-                            citizen.reminder_flag = 1
-                            citizen.notification_sent_time = datetime.utcnow()
-                    if (json_data.get('is_second_reminder', False)):
-                        if (sms_sent):
-                            citizen.reminder_flag = 2
-                            citizen.notification_sent_time = datetime.utcnow()
-                if (citizen.notification_email):
+                    if (json_data.get('is_first_reminder', False)) and sms_sent:
+                        citizen.reminder_flag = 1
+                        citizen.notification_sent_time = datetime.utcnow()
+                    if (json_data.get('is_second_reminder', False)) and sms_sent:
+                        citizen.reminder_flag = 2
+                        citizen.notification_sent_time = datetime.utcnow()
+                if citizen.notification_email:
                     # code/function call to send first email notification,
                     email_sent = False
                     email_sent = get_walkin_reminder_email_contents(citizen, officeObj)
                     if email_sent:
                         status = send_email(request.headers['Authorization'].replace('Bearer ', ''), *email_sent)
-                    if (json_data.get('is_first_reminder', False)):
-                        if email_sent:
-                            citizen.reminder_flag = 1
-                            citizen.notification_sent_time = datetime.utcnow()
-                    if (json_data.get('is_second_reminder', False)):
-                        if email_sent:
-                            citizen.reminder_flag = 2
-                            citizen.notification_sent_time = datetime.utcnow()
-                    
+                    if (json_data.get('is_first_reminder', False)) and email_sent:
+                        citizen.reminder_flag = 1
+                        citizen.notification_sent_time = datetime.utcnow()
+                    if (json_data.get('is_second_reminder', False)) and email_sent:
+                        citizen.reminder_flag = 2
+                        citizen.notification_sent_time = datetime.utcnow()
+
             except ValidationError as err:
                 return {'message': err.messages}, 422
 

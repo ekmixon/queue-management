@@ -32,5 +32,4 @@ class PeriodState(Base):
     @classmethod
     @cache.memoize(timeout=300)
     def get_state_by_name(cls, period_name):
-        state = PeriodState.query.filter_by(ps_name=period_name).first()
-        return state
+        return PeriodState.query.filter_by(ps_name=period_name).first()

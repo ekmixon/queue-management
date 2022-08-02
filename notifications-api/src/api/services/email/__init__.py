@@ -22,9 +22,8 @@ def get_email_service():
 
     _instance: EmailBaseService = None
     if os.getenv('EMAIL_PROVIDER') == 'GC_NOTIFY':
-        _instance = EmailGCNotify()
+        return EmailGCNotify()
     elif os.getenv('EMAIL_PROVIDER') == 'CHES':
-        _instance = EmailChesNotify()
+        return EmailChesNotify()
     else:
-        _instance = EmailGCNotify()
-    return _instance
+        return EmailGCNotify()

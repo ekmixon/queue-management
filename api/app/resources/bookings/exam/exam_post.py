@@ -37,7 +37,7 @@ class ExamPost(Resource):
     @api_call_with_retry
     def post(self):
 
-        is_bcmp_req = True if request.args.get('bcmp_pesticide') else False
+        is_bcmp_req = bool(request.args.get('bcmp_pesticide'))
 
         my_print("is_bcmp_req: ")
         my_print(is_bcmp_req)
@@ -55,10 +55,10 @@ class ExamPost(Resource):
         if warning:
             logging.warning("WARNING: %s", warning)
             return {"message": warning}, 422
-        
-        if not (exam.office_id == csr.office_id or csr.ita2_designate == 1):
+
+        if exam.office_id != csr.office_id and csr.ita2_designate != 1:
             return {"The Exam Office ID and CSR Office ID do not match!"}, 403   
-        
+
         if exam.is_pesticide:
             formatted_data = self.format_data(json_data, exam)
             exam = formatted_data["exam"]
@@ -90,7 +90,7 @@ class ExamPost(Resource):
             exam.office_id = pesticide_office.office_id
 
         if json_data["ind_or_group"] == "individual":
-        
+
             exam_type = ExamType.query.filter_by(exam_type_id=exam.exam_type_id).first()
 
             if not exam_type:
@@ -100,8 +100,9 @@ class ExamPost(Resource):
         else:
             logging.info("For Group Exams")
 
-            exam_type = ExamType.query.filter_by(exam_type_name="Group Pesticide Exam").first()
-            if exam_type:
+            if exam_type := ExamType.query.filter_by(
+                exam_type_name="Group Pesticide Exam"
+            ).first():
                 exam.exam_type_id = exam_type.exam_type_id
                 exam.exam_type = exam_type
 
@@ -109,16 +110,20 @@ class ExamPost(Resource):
                 candidates = json_data["candidates"]
                 candidates_list = []
                 for candidate in candidates:
-                    candidate_temp = {}
-                    candidate_temp["examinee_name"] = candidate["name"]
-                    candidate_temp["examinee_email"] = candidate["email"]
-                    candidate_temp["exam_type_id"] = candidate["exam_type_id"]
-                    candidate_temp["fees"] = candidate["fees"]
-                    candidate_temp["payee_ind"] = 1 if (candidate["billTo"] == "candidate") else 0
-                    candidate_temp["receipt"] = candidate["receipt"]
-                    candidate_temp["receipt_number"] = candidate["receipt"]
-                    candidate_temp["payee_name"] = candidate["payeeName"]
-                    candidate_temp["payee_email"] = candidate["payeeEmail"]
+                    candidate_temp = {
+                        "examinee_name": candidate["name"],
+                        "examinee_email": candidate["email"],
+                        "exam_type_id": candidate["exam_type_id"],
+                        "fees": candidate["fees"],
+                        "payee_ind": 1
+                        if candidate["billTo"] == "candidate"
+                        else 0,
+                        "receipt": candidate["receipt"],
+                        "receipt_number": candidate["receipt"],
+                        "payee_name": candidate["payeeName"],
+                        "payee_email": candidate["payeeEmail"],
+                    }
+
                     candidates_list.append(candidate_temp)
                     # for bcmp service
                     candidates_bcmp = copy.deepcopy(candidate_temp)
@@ -128,7 +133,7 @@ class ExamPost(Resource):
                     candidates_list_bcmp.append(candidates_bcmp)
 
                 exam.candidates_list = candidates_list
-        
+
         return { 
             'exam': exam, 
             'candidates_list_bcmp': candidates_list_bcmp, 

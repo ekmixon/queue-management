@@ -62,10 +62,13 @@ def format_sms_date(dt: datetime, timezone):
 
 def get_user_telephone(user, appointment):
     if user:
-        phone = user.telephone if user.send_sms_reminders else None
+        return user.telephone if user.send_sms_reminders else None
     else:
-        phone = appointment.contact_information if is_valid_phone(appointment.contact_information) else None
-    return phone
+        return (
+            appointment.contact_information
+            if is_valid_phone(appointment.contact_information)
+            else None
+        )
 
 
 def send_walkin_spot_confirmation_sms(citizen: Citizen, url, token: str):
@@ -96,13 +99,23 @@ def send_walkin_reminder_sms(citizen: Citizen, office: Office, token: str):
         notifications_endpoint = current_app.config.get('NOTIFICATIONS_ENDPOINT')
         try:
             msg = "We’re ready! Please come inside and speak to a Service BC Representative"
-            requests.post(notifications_endpoint,
-                          headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {token}'},
-                          data=json.dumps([{
-                              'user_telephone': telephone,
-                              'message': office.check_in_reminder_msg if office.check_in_reminder_msg else msg,
-                              "type": "CUSTOM"
-                          }]))
+            requests.post(
+                notifications_endpoint,
+                headers={
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {token}',
+                },
+                data=json.dumps(
+                    [
+                        {
+                            'user_telephone': telephone,
+                            'message': office.check_in_reminder_msg or msg,
+                            "type": "CUSTOM",
+                        }
+                    ]
+                ),
+            )
+
             return True
         except Exception as exc:
             pprint(f'Error on sms sending - {exc}')

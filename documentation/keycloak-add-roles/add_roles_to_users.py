@@ -44,7 +44,7 @@ def run(env: str, kc_client_id: str, kc_client_secret: str, kc_realm: str):
         'Authorization': f'Bearer {kc_admin_token}'
     })
     print('\n****************************************')
-    print('Found {} users in realm {}'.format(len(users_response.json()), kc_realm))
+    print(f'Found {len(users_response.json())} users in realm {kc_realm}')
     print('****************************************')
 
     get_role_url = f'{kc_base_url}admin/realms/{kc_realm}/roles/internal_user'

@@ -31,21 +31,21 @@ def my_print(my_data):
         if type(my_data) is str:
             print(time_string() + my_data)
         else:
-            print(time_string() + "==> " + str(type(my_data)) + " data is:")
+            print(f"{time_string()}==> {str(type(my_data))} data is:")
             print(my_data)
 
 def time_print(my_data):
     if type(my_data) is str:
         print(time_string() + my_data)
     else:
-        print(time_string() + "==> " + str(type(my_data)) + " data is:")
+        print(f"{time_string()}==> {str(type(my_data))} data is:")
         print(my_data)
 
 def time_string():
     now = datetime.datetime.now()
     ms = now.strftime("%f")[:3]
     now_string = now.strftime("%Y-%m-%d %H:%M:%S,")
-    return "[" + now_string + ms + "] "
+    return f"[{now_string}{ms}] "
 
 application = Flask(__name__, instance_relative_config=True)
 
@@ -67,8 +67,8 @@ query_limit = application.config['DB_LONG_RUNNING_QUERY']
 ping_timeout_seconds = application.config['SOCKETIO_PING_TIMEOUT']
 ping_interval_seconds = application.config['SOCKETIO_PING_INTERVAL']
 print("==> socketIO Engine options")
-print("    --> ping_timeout_seconds:    " + str(ping_timeout_seconds))
-print("    --> ping_interval_seconds:   " + str(ping_interval_seconds))
+print(f"    --> ping_timeout_seconds:    {str(ping_timeout_seconds)}")
+print(f"    --> ping_interval_seconds:   {str(ping_interval_seconds)}")
 
 cache = Cache(config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': application.config['CACHE_DEFAULT_TIMEOUT']})
 cache.init_app(application)
@@ -128,38 +128,21 @@ logger.setLevel(logging.DEBUG)
 #   Configure all logging except basic logging
 configure_logging(application)
 
-# # Build application cache
-# from app.models.theq.office import Office
-# Office.build_cache()
-
-# Init mail service
-# from app.utilities.email import mail
-# mail.init_app(application)
-# application.extensions['mail'].debug = 0
-
-
-#  Code to determine all db.engine properties and sub-properties, as necessary.
-if False:
-    print("==> All DB Engine options")
-    for attr in dir(db._engine_options.keys):
-        print("    --> db._engine_options.keys." + attr + " = " + str(getattr(db._engine_options.keys, attr)))
-        # print("db.engine.%s = %s") % (attr, getattr(db.engine, attr))
-
 #  See whether options took.
 if print_flag:
-     print("==> DB Engine options")
-     print("    --> db options:    " + str(db.engine))
-     print("    --> pool size:    " + str(db.engine.pool.size()))
-     print("    --> max overflow: " + str(db.engine.pool._max_overflow))
-     print("    --> echo:         " + str(db.engine.echo))
-     print("    --> pre ping:     " + str(db.engine.pool._pre_ping))
-     print("    --> Database URI: " + application.config['SQLALCHEMY_DATABASE_URI_DISPLAY'])
-     print("")
+    print("==> DB Engine options")
+    print(f"    --> db options:    {str(db.engine)}")
+    print(f"    --> pool size:    {str(db.engine.pool.size())}")
+    print(f"    --> max overflow: {str(db.engine.pool._max_overflow)}")
+    print(f"    --> echo:         {str(db.engine.echo)}")
+    print(f"    --> pre ping:     {str(db.engine.pool._pre_ping)}")
+    print("    --> Database URI: " + application.config['SQLALCHEMY_DATABASE_URI_DISPLAY'])
+    print("")
 
-     print("==> Socket/Engine options")
-     print("    --> socket: " + os.getenv('LOG_SOCKETIO', '') + '; flag: ' + str(socket_flag))
-     print("    --> engine: " + os.getenv('LOG_ENGINEIO', '') + '; flag: ' + str(engine_flag))
-     print("")
+    print("==> Socket/Engine options")
+    print("    --> socket: " + os.getenv('LOG_SOCKETIO', '') + '; flag: ' + str(socket_flag))
+    print("    --> engine: " + os.getenv('LOG_ENGINEIO', '') + '; flag: ' + str(engine_flag))
+    print("")
 
 #  Get list of available loggers.
 if print_flag:
@@ -167,13 +150,24 @@ if print_flag:
     for name in logging.root.manager.loggerDict:
         temp_logger = logging.getLogger(name)
         temp_handlers = temp_logger.handlers
-        print("    --> Logger name: " + name + '; Handler count: ' \
-              + str(len(temp_handlers)) + '; Level: ' \
-              + debug_level_to_debug_string(temp_logger.getEffectiveLevel()) \
-              + "; Propagate: " + str(temp_logger.propagate))
+        print(
+            (
+                (
+                    (
+                        f"    --> Logger name: {name}; Handler count: "
+                        + str(len(temp_handlers))
+                    )
+                    + '; Level: '
+                )
+                + debug_level_to_debug_string(temp_logger.getEffectiveLevel())
+                + "; Propagate: "
+            )
+            + str(temp_logger.propagate)
+        )
+
         for h in temp_handlers:
             if h.__class__.__name__ != "NullHandler":
-                print("        --> name: " + name + "; handler type: " + h.__class__.__name__)
+                print(f"        --> name: {name}; handler type: {h.__class__.__name__}")
 
 # def api_call_with_retry(f, max_time=15000, max_tries=12, delay_first=100, delay_start=200, delay_mult=1.5):
 def api_call_with_retry(f, max_time=15000, max_tries=12, delay_first=175, delay_start=175, delay_mult=1.0):
@@ -215,7 +209,7 @@ def api_call_with_retry(f, max_time=15000, max_tries=12, delay_first=175, delay_
 
             #  Update variables.
             parameters['current_try'] += 1
-            parameters['total_delay'] = parameters['total_delay'] + parameters['current_delay']
+            parameters['total_delay'] += parameters['current_delay']
 
             #  Sleep a bit.
             time.sleep(parameters['current_delay'] / 1000.0)
@@ -248,15 +242,14 @@ def print_error_info(print_debug, parameters, err):
 
 def update_delay(current_delay, current_try, delay_first, delay_start, delay_mult):
     if current_try == 1:
-        output_delay = delay_first
+        return delay_first
     elif current_try == 2:
-        output_delay = delay_start
+        return delay_start
     else:
-        output_delay = current_delay * delay_mult
-    return output_delay
+        return current_delay * delay_mult
 
 def get_key():
-    time_now = datetime.datetime.today()
+    time_now = datetime.datetime.now()
     alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     char_year = alpha[time_now.year - 2019]
     char_month = alpha[time_now.month - 1]
@@ -385,7 +378,7 @@ def after_cursor_execute(conn, cursor, statement,
     total = time.time() - conn.info['query_start_time'].pop(-1)
 
     if total > query_limit:
-        logger.info("Long running Query (%s s)" % (total))
+        logger.info(f"Long running Query ({total} s)")
         output_string = str(parameters)
         if len(output_string) > 90:
             output_string = output_string[:85] + " ...}"
@@ -402,11 +395,11 @@ def after_cursor_execute(conn, cursor, statement,
                 if start != -1:
                     output_string = output_string[start:]
                 if debug:
-                    logger.debug("--> Line " + str(count) + ": " + output_string)
+                    logger.debug(f"--> Line {str(count)}: {output_string}")
                 else:
-                    logger.info("--> Line " + str(count) + ": " + output_string)
+                    logger.info(f"--> Line {str(count)}: {output_string}")
         except Exception as err:
-            print("==> Error:" + str(err))
+            print(f"==> Error:{str(err)}")
 
 
 @application.after_request

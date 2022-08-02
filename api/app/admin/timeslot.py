@@ -61,9 +61,8 @@ class MultipleSelect2Field(Select2Field):
         """Validate sent keys to make sure user don't post data that is not a valid choice."""
         sent_data = set(self.data)
         valid_data = {k for k, _ in self.choices}
-        invalid_keys = sent_data - valid_data
-        if invalid_keys:
-            raise ValueError('These values are invalid {}'.format(','.join(invalid_keys)))
+        if invalid_keys := sent_data - valid_data:
+            raise ValueError(f"These values are invalid {','.join(invalid_keys)}")
 
 
 class TimeslotConfig(Base):

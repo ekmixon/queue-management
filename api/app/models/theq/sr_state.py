@@ -31,5 +31,4 @@ class SRState(Base):
     @classmethod
     @cache.memoize(timeout=300)
     def get_state_by_name(cls, sr_code):
-        state = SRState.query.filter_by(sr_code=sr_code).first()
-        return state
+        return SRState.query.filter_by(sr_code=sr_code).first()

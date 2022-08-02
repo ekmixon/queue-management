@@ -37,7 +37,7 @@ class AppointmentDelete(Resource):
     def delete(self, id):
 
         appointment = Appointment.query.filter_by(appointment_id=id) \
-            .first_or_404()
+                .first_or_404()
 
         csr = None if is_public_user() else CSR.find_by_username(g.jwt_oidc_token_info['username'])
 
@@ -54,17 +54,14 @@ class AppointmentDelete(Resource):
             SnowPlow.snowplow_appointment(None, csr, appointment, 'appointment_delete')
 
         # Do not log snowplow events or send emails if it's a draft.
-        if not appointment.is_draft:
+        if not appointment.is_draft and csr:
+            office = Office.find_by_id(appointment.office_id)
 
-            # If the appointment is public user's and if staff deletes it send email
-            if csr:
-                office = Office.find_by_id(appointment.office_id)
-
-                # Send blackout email
-                try:
-                    send_email(request.headers['Authorization'].replace('Bearer ', ''), *get_cancel_email_contents(appointment, user, office, office.timezone))
-                except Exception as exc:
-                    pprint(f'Error on token generation - {exc}')
+            # Send blackout email
+            try:
+                send_email(request.headers['Authorization'].replace('Bearer ', ''), *get_cancel_email_contents(appointment, user, office, office.timezone))
+            except Exception as exc:
+                pprint(f'Error on token generation - {exc}')
 
         db.session.delete(appointment)
         db.session.commit()

@@ -38,42 +38,27 @@ class ExamStatus(Resource):
         try:
             exam = Exam.query.filter_by(exam_id=exam_id).first()
 
-            if not (exam.office_id == csr.office_id or csr.ita2_designate == 1):
+            if exam.office_id != csr.office_id and csr.ita2_designate != 1:
                 return {"The Exam Office ID and CSR Office ID do not match!"}, 403
 
             job = self.bcmp_service.check_exam_status(exam)
             my_print(job)
 
-            if job['jobStatus'] == 'PACKAGE_GENERATED':
-                package_url = job["jobProperties"]["EXAM_PACKAGE_URL"]
-                req = urllib.request.Request(package_url)
-                response = urllib.request.urlopen(req).read()
-                exam_file = io.BytesIO(response)
-                file_wrapper = FileWrapper(exam_file)
-
-                return Response(file_wrapper,
-                                mimetype="application/pdf",
-                                direct_passthrough=True,
-                                headers={
-                                    "Content-Disposition": 'attachment; filename="%s.csv"' % exam.exam_id,
-                                    "Content-Type": "application/pdf"
-                                })
-            else:
+            if job['jobStatus'] != 'PACKAGE_GENERATED':
                 return {'message': 'Package not yet generated', 'status': job['jobStatus']}, 400
-                # test_url = 'http://www.pdf995.com/samples/pdf.pdf'
-                # req = urllib.request.Request(test_url)
-                # response = urllib.request.urlopen(req).read()
-                # exam_file = io.BytesIO(response)
-                # file_wrapper = FileWrapper(exam_file)
-                #
-                # return Response(file_wrapper,
-                #                 mimetype="application/pdf",
-                #                 direct_passthrough=True,
-                #                 headers={
-                #                     "Content-Disposition": 'attachment; filename="%s.csv"' % exam.exam_id,
-                #                     "Content-Type": "application/pdf"
-                #                 })
+            package_url = job["jobProperties"]["EXAM_PACKAGE_URL"]
+            req = urllib.request.Request(package_url)
+            response = urllib.request.urlopen(req).read()
+            exam_file = io.BytesIO(response)
+            file_wrapper = FileWrapper(exam_file)
 
+            return Response(file_wrapper,
+                            mimetype="application/pdf",
+                            direct_passthrough=True,
+                            headers={
+                                "Content-Disposition": 'attachment; filename="%s.csv"' % exam.exam_id,
+                                "Content-Type": "application/pdf"
+                            })
         except exc.SQLAlchemyError as error:
             logging.error(error, exc_info=True)
             return {'message': 'API is down'}, 500

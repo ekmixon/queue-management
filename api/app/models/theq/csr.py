@@ -59,7 +59,10 @@ class CSR(Base):
         if cache.get(key):
             return cache.get(key)
 
-        my_print("==> In Python, csr.py, find_by_username: username=" + str(username) + "; idir_id=" + str(idir_id))
+        my_print(
+            f"==> In Python, csr.py, find_by_username: username={str(username)}; idir_id={str(idir_id)}"
+        )
+
         csr = CSR.query.filter(CSR.deleted.is_(None)).filter(CSR.username==idir_id).first()
 
         cache.set(key, csr)
@@ -90,8 +93,11 @@ class CSR(Base):
             key = (CSR.format_string % csr_db.username).lower()
             cache.set(key, csr_db)
         except Exception as ex:
-            print("==> csr.py, update_user_cache, userid: " + str(userid) + "; type: " + str(type(userid)))
-            print("    --> Exception: " + str(ex))
+            print(
+                f"==> csr.py, update_user_cache, userid: {str(userid)}; type: {str(type(userid))}"
+            )
+
+            print(f"    --> Exception: {str(ex)}")
 
     def get_id(self):
         return str(self.csr_id)

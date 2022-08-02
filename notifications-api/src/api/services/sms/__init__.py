@@ -22,7 +22,6 @@ def get_sms_service():
 
     _instance: SmsBaseService = None
     if os.getenv('SMS_USE_GC_NOTIFY', 'true').lower() == 'true':
-        _instance = GCNotify()
+        return GCNotify()
     else:
-        _instance = CustomNotify()
-    return _instance
+        return CustomNotify()

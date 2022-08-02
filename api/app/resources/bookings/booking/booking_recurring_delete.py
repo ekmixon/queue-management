@@ -33,7 +33,7 @@ class BookingRecurringDelete(Resource):
     @jwt.has_one_of_roles([Role.internal_user.value])
     def delete(self, id):
 
-        today = datetime.today()
+        today = datetime.now()
         string_today = today.strftime('%Y-%m-%d')
 
         print("==> In the python DELETE /bookings/recurring/<id> endpoint")
@@ -41,15 +41,15 @@ class BookingRecurringDelete(Resource):
         csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
 
         bookings = Booking.query.filter_by(recurring_uuid=id)\
-                                .filter(db.func.date(Booking.start_time) >= string_today)\
-                                .all()
+                                    .filter(db.func.date(Booking.start_time) >= string_today)\
+                                    .all()
 
         for booking in bookings:
             if booking.office_id != csr.office_id and csr.ita2_designate != 1:
                 abort(404)
 
             if booking.start_time.year == today.year and booking.start_time.month == today.month \
-                    and booking.start_time.day == today.day and booking.start_time.hour <= 5:
+                        and booking.start_time.day == today.day and booking.start_time.hour <= 5:
                 continue
 
             db.session.delete(booking)

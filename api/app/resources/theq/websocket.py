@@ -29,10 +29,12 @@ def on_join(message):
     if claims["preferred_username"]:
         my_print("==> In Python, @socketio.on('joinRoom'): claims['preferred_username'] is: " + str(
             claims["preferred_username"]))
-        csr = CSR.find_by_username(claims["preferred_username"])
-        if csr:
+        if csr := CSR.find_by_username(claims["preferred_username"]):
             join_room(csr.office_id)
-            print("==> In websocket.py, CSR joinroom, CSR: " + csr.username + "; request sid: " + str(request.sid))
+            print(
+                f"==> In websocket.py, CSR joinroom, CSR: {csr.username}; request sid: {str(request.sid)}"
+            )
+
             emit('joinRoomSuccess', {"sucess": True})
             emit('get_Csr_State_IDs', {"success": True})
             emit('update_customer_list', {"success": True})
@@ -48,13 +50,15 @@ def on_join(message):
 def on_join_smartboard(message):
     try:
         office_id = int(message['office_id'])
-        room = "sb-%s" % office_id
+        room = f"sb-{office_id}"
 
-        my_print("Joining room: %s" % room)
+        my_print(f"Joining room: {room}")
 
         join_room(room)
-        print("==> In websocket.py, Smartboard joinroom, Office id: " + str(office_id) + "; request sid: " + str(
-            request.sid))
+        print(
+            f"==> In websocket.py, Smartboard joinroom, Office id: {office_id}; request sid: {str(request.sid)}"
+        )
+
         emit('joinSmartboardRoomSuccess')
     except KeyError as e:
         print(e)

@@ -42,16 +42,14 @@ class PublicUser(Base):
     @classmethod
     def find_by_username(cls, username):
         """Find User records by username."""
-        user = cls.query.filter_by(username=username).one_or_none()
         # cache.set(key, user)
-        return user
+        return cls.query.filter_by(username=username).one_or_none()
 
     @classmethod
     def find_by_user_id(cls, user_id):
         """Find User records by user_id."""
-        user = cls.query.get(user_id)
         # cache.set(key, user)
-        return user
+        return cls.query.get(user_id)
 
     @classmethod
     def find_appointments_by_username(cls, username: str):

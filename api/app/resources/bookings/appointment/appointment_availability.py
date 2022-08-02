@@ -45,8 +45,7 @@ class OfficeSlots(Resource):
             days = [today + datetime.timedelta(days=x) for x in range(appointments_days_limit)]
 
             service = None
-            service_id = request.args.get('service_id')
-            if (service_id):
+            if service_id := request.args.get('service_id'):
                 service = Service.query.get(int(service_id))
 
             return AvailabilityService.get_available_slots(office=office, days=days, service=service)

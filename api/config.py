@@ -16,6 +16,8 @@ config = {
     "default": "config.LocalConfig"
 }
 
+
+
 class BaseConfig(object):
 
     #   Set up miscellaneous environment variables.
@@ -34,7 +36,7 @@ class BaseConfig(object):
 
     #   Set up OIDC variables.
     SECRET_KEY = os.getenv('SECRET_KEY')
-    
+
     # #   Set up OIDC variables.
     # SECRET_KEY = os.getenv('SECRET_KEY')
     # OIDC_OPENID_REALM = os.getenv('OIDC_OPENID_REALM','nest')
@@ -48,7 +50,7 @@ class BaseConfig(object):
     if os.getenv('CORS_ALLOWED_ORIGINS', None):
         CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS').split(',')
     else:
-        CORS_ALLOWED_ORIGINS = ["https://" + SESSION_COOKIE_DOMAIN]
+        CORS_ALLOWED_ORIGINS = [f"https://{SESSION_COOKIE_DOMAIN}"]
 
     #   Set up RabbitMQ variables.
     ACTIVE_MQ_TYPE = os.getenv('ACTIVE_MQ_TYPE','amqp')
@@ -152,18 +154,14 @@ class BaseConfig(object):
             # SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = { 'connect_timeout': connect_timeout, 'tcp_user_timeout': 500 }
             SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {'connect_timeout': connect_timeout}
 
-    print("==> SQLALCHEMY_ENGINE_OPTIONS (Engine: " + DB_ENGINE)
+    print(f"==> SQLALCHEMY_ENGINE_OPTIONS (Engine: {DB_ENGINE}")
     pprint(SQLALCHEMY_ENGINE_OPTIONS)
 
     #  Set echo appropriately.
-    if (os.getenv('SQLALCHEMY_ECHO', "False")).upper() == "TRUE":
-        SQLALCHEMY_ECHO=True
-    else:
-        SQLALCHEMY_ECHO=False
-
+    SQLALCHEMY_ECHO = (os.getenv('SQLALCHEMY_ECHO', "False")).upper() == "TRUE"
     SOCKETIO_PING_TIMEOUT = int(os.getenv('SOCKETIO_PING_TIMEOUT', 5))
     SOCKETIO_PING_INTERVAL = int(os.getenv('SOCKETIO_PING_INTERVAL', 25))
-    
+
     THEQ_FEEDBACK = (os.getenv('THEQ_FEEDBACK','')).upper().replace(" ","").split(",")
     TEAMS_URL = os.getenv('TEAMS_URL', '')
     ROCKET_CHAT_URL = os.getenv('ROCKET_CHAT_URL','')
@@ -175,7 +173,7 @@ class BaseConfig(object):
     SERVICENOW_ASSIGN_GROUP = os.getenv('SERVICENOW_ASSIGN_GROUP', '')
 
     APPOINTMENT_LIMIT_DAYS = os.getenv('APPOINTMENT_LIMIT_DAYS', 15)
- 
+
 
     VIDEO_PATH = os.getenv('VIDEO_PATH', '')
     BACK_OFFICE_DISPLAY = os.getenv("BACK_OFFICE_DISPLAY", "BackOffice")
@@ -207,7 +205,7 @@ class BaseConfig(object):
 
     # Auto-refresh application configuration
     DISABLE_AUTO_REFRESH = (os.getenv("DISABLE_AUTO_REFRESH","FALSE")).upper() == "TRUE"
-    
+
     # JWT_OIDC Settings
     JWT_OIDC_WELL_KNOWN_CONFIG = os.getenv('JWT_OIDC_WELL_KNOWN_CONFIG')
     JWT_OIDC_ALGORITHMS = os.getenv('JWT_OIDC_ALGORITHMS', 'RS256')
@@ -225,7 +223,8 @@ class BaseConfig(object):
     # get appointment portal URL
     APPOINTMENT_PORTAL_URL = os.getenv('APPOINTMENT_PORTAL_URL', '')
 
-    
+
+
 class LocalConfig(BaseConfig):
     DEBUG = True
     TESTING = False
@@ -340,13 +339,16 @@ def configure_logging(app):
         log_string = os.getenv(env_name, "None")
         if (log_string != "None"):
             if print_flag:
-                print("        --> Logger " + name + " set to level = " + log_string)
+                print(f"        --> Logger {name} set to level = {log_string}")
             module_logger = logging.getLogger(name)
             log_level = debug_string_to_debug_level(log_string)
             module_logger.setLevel(log_level)
-        elif (basic_string != "DEFAULT"):
+        elif basic_string != "DEFAULT":
             if print_flag:
-                print("        --> Logger " + name + " set to level LOG_BASIC level of " + basic_string)
+                print(
+                    f"        --> Logger {name} set to level LOG_BASIC level of {basic_string}"
+                )
+
             module_logger = logging.getLogger(name)
             module_logger.setLevel(basic_level)
 

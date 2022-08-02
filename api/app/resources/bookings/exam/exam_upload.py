@@ -33,7 +33,7 @@ class ExamStatus(Resource):
         try:
             exam = Exam.query.filter_by(exam_id=exam_id).first()
 
-            if not (exam.office_id == csr.office_id or csr.ita2_designate == 1):
+            if exam.office_id != csr.office_id and csr.ita2_designate != 1:
                 return {"The Exam Office ID and CSR Office ID do not match!"}, 403
             client = DocumentService(
                 application.config["MINIO_HOST"],
@@ -43,7 +43,7 @@ class ExamStatus(Resource):
                 application.config["MINIO_USE_SECURE"]
             )
 
-            object_name = "%s.pdf" % exam_id
+            object_name = f"{exam_id}.pdf"
             url = client.get_presigned_put_url(object_name)
 
             return {"url": url}

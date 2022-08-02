@@ -27,57 +27,59 @@ from app.auth.auth import jwt
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def csr_find_by_user():
-    csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
-    return csr
+    return CSR.find_by_username(g.jwt_oidc_token_info['username'])
 
 
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def find_active():
-    active_citizen_state = CitizenState.query.filter_by(cs_state_name='Active').first()
-    return active_citizen_state
+    return CitizenState.query.filter_by(cs_state_name='Active').first()
 
 
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def find_wait():
-    waiting_period_state = PeriodState.get_state_by_name("Waiting")
-    return waiting_period_state
+    return PeriodState.get_state_by_name("Waiting")
 
 
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def find_citizen(counter_id, active_citizen_state, csr, waiting_period_state):
-    citizen = Citizen.query \
-        .filter_by(counter_id=counter_id, cs_id=active_citizen_state.cs_id, office_id=csr.office_id) \
-        .join(Citizen.service_reqs) \
-        .join(ServiceReq.periods) \
-        .filter_by(ps_id=waiting_period_state.ps_id) \
-        .filter(Period.time_end.is_(None)) \
-        .order_by(Citizen.priority, Citizen.start_time) \
+    return (
+        Citizen.query.filter_by(
+            counter_id=counter_id,
+            cs_id=active_citizen_state.cs_id,
+            office_id=csr.office_id,
+        )
+        .join(Citizen.service_reqs)
+        .join(ServiceReq.periods)
+        .filter_by(ps_id=waiting_period_state.ps_id)
+        .filter(Period.time_end.is_(None))
+        .order_by(Citizen.priority, Citizen.start_time)
         .first()
-    return citizen
+    )
 
 
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def find_citizen2(active_citizen_state, csr, waiting_period_state):
-    citizen = Citizen.query \
-        .filter_by(cs_id=active_citizen_state.cs_id, office_id=csr.office_id) \
-        .join(Citizen.service_reqs) \
-        .join(ServiceReq.periods) \
-        .filter_by(ps_id=waiting_period_state.ps_id) \
-        .filter(Period.time_end.is_(None)) \
-        .order_by(Citizen.priority, Citizen.citizen_id) \
+    return (
+        Citizen.query.filter_by(
+            cs_id=active_citizen_state.cs_id, office_id=csr.office_id
+        )
+        .join(Citizen.service_reqs)
+        .join(ServiceReq.periods)
+        .filter_by(ps_id=waiting_period_state.ps_id)
+        .filter(Period.time_end.is_(None))
+        .order_by(Citizen.priority, Citizen.citizen_id)
         .first()
-    return citizen
+    )
 
 
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def find_active_sr(citizen):
-    active_service_request = citizen.get_active_service_request()
-    return active_service_request
+    return citizen.get_active_service_request()
 
 
 @jwt.has_one_of_roles([Role.internal_user.value])
@@ -89,22 +91,19 @@ def invite_active_sr(active_service_request,csr,citizen):
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def find_active_ss():
-    active_service_state = SRState.get_state_by_name("Active")
-    return active_service_state
+    return SRState.get_state_by_name("Active")
 
 
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def find_active_sr(citizen):
-    active_service_request = citizen.get_active_service_request()
-    return active_service_request
+    return citizen.get_active_service_request()
 
 
 @jwt.has_one_of_roles([Role.internal_user.value])
 @api_call_with_retry
 def find_active_sr(citizen):
-    active_service_request = citizen.get_active_service_request()
-    return active_service_request
+    return citizen.get_active_service_request()
 
 
 @api.route("/citizens/invite/", methods=['POST'])
@@ -114,18 +113,14 @@ class CitizenGenericInvite(Resource):
     citizens_schema = CitizenSchema(many=True)
 
     @jwt.has_one_of_roles([Role.internal_user.value])
-    #@api_call_with_retry
     def post(self):
-        #print("==> In Python /citizens/invitetest")
-        y = 0
         #for x in range(0, 25):
-        key = "DR->" + get_key()
-        #print("")
-        y = y + 1
+        key = f"DR->{get_key()}"
+        y = 0 + 1
         #print("DATETIME:", datetime.now(), "starting loop:", y, "==>Key : ", key)
         csr = csr_find_by_user()
         #print("DATETIME:", datetime.now(), "==>Key : ", key,"===>AFTER CALL TO csr_find_by_user:", csr)
-        lock = FileLock("lock/invite_citizen_{}.lock".format(csr.office_id))
+        lock = FileLock(f"lock/invite_citizen_{csr.office_id}.lock")
         with lock:
 
             #active_citizen_state = find_active()
@@ -151,7 +146,10 @@ class CitizenGenericInvite(Resource):
             if citizen is None:
                 return {"message": "There is no citizen to invite"}, 400
 
-            my_print("==> POST /citizens/invite/ Citizen: " + str(citizen.citizen_id) + ', Ticket: ' + citizen.ticket_number)
+            my_print(
+                f"==> POST /citizens/invite/ Citizen: {str(citizen.citizen_id)}, Ticket: {citizen.ticket_number}"
+            )
+
 
             db.session.refresh(citizen)
 
@@ -173,11 +171,11 @@ class CitizenGenericInvite(Resource):
             db.session.commit()
 
             socketio.emit('update_customer_list', {}, room=csr.office_id)
-            socketio.emit('citizen_invited', {}, room='sb-%s' % csr.office.office_number)
+            socketio.emit('citizen_invited', {}, room=f'sb-{csr.office.office_number}')
             result = self.citizen_schema.dump(citizen)
             socketio.emit('update_active_citizen', result, room=csr.office_id)
 
-            #print("DATETIME:", datetime.now(), "end loop:     ", y , "==>Key : ", key)
+                #print("DATETIME:", datetime.now(), "end loop:     ", y , "==>Key : ", key)
 
         return {'citizen': result,
                 'errors': self.citizen_schema.validate(citizen)}, 200

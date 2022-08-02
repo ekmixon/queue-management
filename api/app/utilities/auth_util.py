@@ -55,7 +55,6 @@ def has_any_role(roles: list):
 def has_role(need_roles: list, all_roles: list, user, caller):
     if any(role in all_roles for role in need_roles):
         return
-    else:
-        time_print("==> has_role, R: " + str(need_roles) + "; T: " + str(all_roles))
-        time_print("    --> U: " + user + "; C:  " + caller)
-        abort(403)
+    time_print(f"==> has_role, R: {need_roles}; T: {all_roles}")
+    time_print(f"    --> U: {user}; C:  {caller}")
+    abort(403)

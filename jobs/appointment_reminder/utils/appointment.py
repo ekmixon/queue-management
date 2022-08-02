@@ -44,5 +44,4 @@ def get_access_token(app):
         'Content-Type': 'application/x-www-form-urlencoded'
     }
     token_response = requests.post(token_url, data=data, headers=headers)
-    access_token = token_response.json().get('access_token')
-    return access_token
+    return token_response.json().get('access_token')

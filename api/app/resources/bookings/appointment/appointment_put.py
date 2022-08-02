@@ -82,8 +82,8 @@ class AppointmentPut(Resource):
             office = Office.find_by_id(office_id)
 
         appointment = Appointment.query.filter_by(appointment_id=id) \
-            .filter_by(office_id=office_id) \
-            .first_or_404()
+                .filter_by(office_id=office_id) \
+                .first_or_404()
 
         # If appointment is not made by same user, throw error
         if is_public_user_appt:
@@ -94,9 +94,7 @@ class AppointmentPut(Resource):
                 abort(403)
 
         appointment = self.appointment_schema.load(json_data, instance=appointment, partial=True)
-        warning = self.appointment_schema.validate(json_data)
-
-        if warning:
+        if warning := self.appointment_schema.validate(json_data):
             logging.warning("WARNING: %s", warning)
             return {"message": warning}, 422
 
@@ -109,12 +107,13 @@ class AppointmentPut(Resource):
         except Exception as exc:
             pprint(f'Error on token generation - {exc}')
 
-        #   Make Snowplow call.
-        schema = 'appointment_update'
-        if "checked_in_time" in json_data:
-            schema = 'appointment_checkin'
-
         if not appointment.is_draft:
+            schema = (
+                'appointment_checkin'
+                if "checked_in_time" in json_data
+                else 'appointment_update'
+            )
+
             SnowPlow.snowplow_appointment(None, csr, appointment, schema)
 
         result = self.appointment_schema.dump(appointment)
@@ -126,7 +125,7 @@ class AppointmentPut(Resource):
                 socketio.emit('appointment_delete', id)
             else:
                 socketio.emit('appointment_update', result)
-        
+
 
         return {"appointment": result,
                 "errors": self.appointment_schema.validate(appointment)}, 200

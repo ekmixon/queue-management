@@ -39,15 +39,13 @@ class AppointmentRecurringPut(Resource):
             return {"message": "No input data received for updating an series of appointments"}
 
         appointments = Appointment.query.filter_by(recurring_uuid=id)\
-                                  .filter_by(office_id=csr.office_id)\
-                                  .all()
+                                      .filter_by(office_id=csr.office_id)\
+                                      .all()
 
         for appointment in appointments:
 
             appointment = self.appointment_schema.load(json_data, instance=appointment, partial=True)
-            warning = self.appointment_schema.validate(json_data)
-
-            if warning:
+            if warning := self.appointment_schema.validate(json_data):
                 logging.warning('WARNING: %s', warning)
                 return {"message": warning}, 422
 

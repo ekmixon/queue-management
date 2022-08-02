@@ -32,11 +32,14 @@ class CitizenSpecificInvite(Resource):
     @api_call_with_retry
     def post(self, id):
         csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
-        lock = FileLock("lock/invite_citizen_{}.lock".format(csr.office_id))
+        lock = FileLock(f"lock/invite_citizen_{csr.office_id}.lock")
 
         with lock:
             citizen = db.session.query(Citizen).filter_by(citizen_id=id).first()
-            my_print("==> POST /citizens/" + str(citizen.citizen_id) + '/invite/, Ticket: ' + citizen.ticket_number)
+            my_print(
+                f"==> POST /citizens/{str(citizen.citizen_id)}/invite/, Ticket: {citizen.ticket_number}"
+            )
+
             active_service_state = SRState.get_state_by_name("Active")
 
             active_service_request = citizen.get_active_service_request()
@@ -55,7 +58,7 @@ class CitizenSpecificInvite(Resource):
             db.session.commit()
 
             socketio.emit('update_customer_list', {}, room=csr.office_id)
-            socketio.emit('citizen_invited', {}, room='sb-%s' % csr.office.office_number)
+            socketio.emit('citizen_invited', {}, room=f'sb-{csr.office.office_number}')
             result = self.citizen_schema.dump(citizen)
             socketio.emit('update_active_citizen', result, room=csr.office_id)
 

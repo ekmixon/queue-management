@@ -65,7 +65,7 @@ class Feedback(Resource):
 
     @staticmethod
     def send_to_teams(feedback_message):
-        
+
         url = application.config['TEAMS_URL']
 
         if url is None:
@@ -90,7 +90,7 @@ class Feedback(Resource):
 
     @staticmethod
     def send_to_service_now(params):
-        
+
         instance = application.config['SERVICENOW_INSTANCE']
         user = application.config['SERVICENOW_USER']
         password = application.config['SERVICENOW_PASSWORD']
@@ -121,7 +121,7 @@ class Feedback(Resource):
         csr = Feedback.extract_string(params, "Username: ", "\n", 0)
         ticket = Feedback.extract_string(params, "Ticket Number: ","\n", 0)
         msg = Feedback.extract_string(params, "Message: ", "", 50)
-        short_desc = "TheQ Feedback (CSR: " + csr + "; Ticket: " + ticket + "; Msg: " + msg + ")"
+        short_desc = f"TheQ Feedback (CSR: {csr}; Ticket: {ticket}; Msg: {msg})"
 
         #  Create new record depending on tenant value.
         if len(tenant) != 0:
@@ -158,7 +158,7 @@ class Feedback(Resource):
 
     @staticmethod
     def send_to_rocket_chat(feedback_message):
-        
+
         url = application.config['ROCKET_CHAT_URL']
 
         if url is None:
@@ -171,7 +171,7 @@ class Feedback(Resource):
         try:
             result = requests.post(url, params)
         except Exception as err:
-            return {"message": "Error posting to Rocket Chat. " + str(err)}, 400
+            return {"message": f"Error posting to Rocket Chat. {str(err)}"}, 400
 
         #  See if success or not.
         if result.status_code == 200:
@@ -185,17 +185,12 @@ class Feedback(Resource):
         start = big_string.find(key)
         if start >= 0:
             #  End string specified.
-            if len(endstr) != 0:
-                end = big_string.find(endstr, start+len(key))
-            else:
-                end = -1
-
+            end = big_string.find(endstr, start+len(key)) if len(endstr) != 0 else -1
             if end >= 0:
                 extracted = big_string[start+len(key):end]
-            else:
-                if max_if_not_found > 0:
-                    extracted = big_string[start+len(key):]
-                    extracted = extracted[0:min(max_if_not_found, len(extracted))]
+            elif max_if_not_found > 0:
+                extracted = big_string[start+len(key):]
+                extracted = extracted[:min(max_if_not_found, len(extracted))]
 
         return extracted
 
@@ -203,18 +198,21 @@ class Feedback(Resource):
     def combine_results(name_one, result_one, name_two, result_two):
 
         if result_one is None:
-            if result_two is None:
-                result = {"message": "TheQ is not configured for feedback.  Contact your service desk."}, 400
-            else:
-                result = result_two
+            return (
+                (
+                    {
+                        "message": "TheQ is not configured for feedback.  Contact your service desk."
+                    },
+                    400,
+                )
+                if result_two is None
+                else result_two
+            )
 
+        elif result_two is None:
+            return result_one
         else:
-            if result_two is None:
-                result = result_one
-            else:
-                result = Feedback.extract_messages(name_one, result_one, name_two, result_two)
-
-        return result
+            return Feedback.extract_messages(name_one, result_one, name_two, result_two)
 
     @staticmethod
     def extract_messages(name_one, result_one, name_two, result_two):
@@ -226,14 +224,10 @@ class Feedback(Resource):
         if 'message' in first_result:
             message = name_one + first_result['message']
         if 'message' in second_result:
-            if len(message) != 0:
-                message = message + "; " + name_two + second_result['message']
-            else:
-                message = name_two + second_result['message']
+            message = (
+                f"{message}; {name_two}" + second_result['message']
+                if message
+                else name_two + second_result['message']
+            )
 
-        if message:
-            result = {"message": message}, 400
-        else:
-            result = {"status": "Success"}, 200
-
-        return result
+        return ({"message": message}, 400) if message else ({"status": "Success"}, 200)

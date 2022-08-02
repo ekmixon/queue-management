@@ -46,7 +46,7 @@ class AppointmentPost(Resource):
     def post(self):
         my_print("==> In AppointmentPost, POST /appointments/")
         json_data = request.get_json()
-        
+
         if not json_data:
             return {"message": "No input data received for creating an appointment"}, 400
 
@@ -60,10 +60,10 @@ class AppointmentPost(Resource):
         #for stat
         if (json_data.get('stat_office_id', False)):
             json_data['office_id'] = json_data.get('stat_office_id')
-        
+
         #get start date:
         start_time_ct = json_data.get('start_time', False)
-        
+
         # remove below code, once code is tested - new req --> Stop blackouts from cancelling items (offices will call and cancel people individually if we have to close)
         is_blackout_appt = json_data.get('blackout_flag', 'N') == 'Y'
         csr = None
@@ -137,31 +137,29 @@ class AppointmentPost(Resource):
             logging.warning("WARNING: %s", warning)
             return {"message": warning}, 422
 
-        if appointment.office_id == office_id:
-            appointment.citizen_id = citizen.citizen_id
-            db.session.add(appointment)
-            db.session.commit()
-            
-            is_stat = (json_data.get('stat_flag', False))
-
-            if ((not is_stat) and (not is_blackout_appt)):
-                # Send confirmation email and sms
-                try:
-                    send_email(request.headers['Authorization'].replace('Bearer ', ''), *get_confirmation_email_contents(appointment, office, office.timezone, user))
-                    send_sms(appointment, office, office.timezone, user,
-                             request.headers['Authorization'].replace('Bearer ', ''))
-                except Exception as exc:
-                    pprint(f'Error on sms or email sending - {exc}')
-
-            SnowPlow.snowplow_appointment(citizen, csr, appointment, 'appointment_create')
-
-            result = self.appointment_schema.dump(appointment)
-
-            if not application.config['DISABLE_AUTO_REFRESH']:
-                socketio.emit('appointment_create', result)
-
-            return {"appointment": result,
-                    "errors": {}}, 201
-
-        else:
+        if appointment.office_id != office_id:
             return {"The Appointment Office ID and CSR Office ID do not match!"}, 403
+        appointment.citizen_id = citizen.citizen_id
+        db.session.add(appointment)
+        db.session.commit()
+
+        is_stat = (json_data.get('stat_flag', False))
+
+        if ((not is_stat) and (not is_blackout_appt)):
+            # Send confirmation email and sms
+            try:
+                send_email(request.headers['Authorization'].replace('Bearer ', ''), *get_confirmation_email_contents(appointment, office, office.timezone, user))
+                send_sms(appointment, office, office.timezone, user,
+                         request.headers['Authorization'].replace('Bearer ', ''))
+            except Exception as exc:
+                pprint(f'Error on sms or email sending - {exc}')
+
+        SnowPlow.snowplow_appointment(citizen, csr, appointment, 'appointment_create')
+
+        result = self.appointment_schema.dump(appointment)
+
+        if not application.config['DISABLE_AUTO_REFRESH']:
+            socketio.emit('appointment_create', result)
+
+        return {"appointment": result,
+                "errors": {}}, 201

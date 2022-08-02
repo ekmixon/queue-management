@@ -42,7 +42,11 @@ def read_file(entry):
 
 def get_url(office_number, manifest_data):
 
-    error = "Neither office " + str(office_number) + ' "default" found in manifest.json'
+    error = (
+        f"Neither office {str(office_number)}"
+        + ' "default" found in manifest.json'
+    )
+
 
     #  Search for office number, if not found, search for defauult.
     search = '"' + str(office_number) + '"'
@@ -80,10 +84,7 @@ class VideoFiles(Resource):
         newfiles = []
         manifest_data = ''
         errors = ''
-        space = {}
-        space['total'] = 0
-        space['used'] = 0
-        space['freespace'] = 0
+        space = {'total': 0, 'used': 0, 'freespace': 0}
         code = 201
 
         try:
@@ -93,9 +94,13 @@ class VideoFiles(Resource):
                         file_name, file_extension = os.path.splitext(entry.name)
                         if file_extension.lower() == '.mp4':
                             info = entry.stat()
-                            new_info = {}
-                            new_info['name'] = entry.name
-                            new_info['date'] = datetime.utcfromtimestamp(info.st_mtime).strftime('%Y-%m-%d %I:%H:%M %p')
+                            new_info = {
+                                'name': entry.name,
+                                'date': datetime.utcfromtimestamp(
+                                    info.st_mtime
+                                ).strftime('%Y-%m-%d %I:%H:%M %p'),
+                            }
+
                             new_info['size'] = "{:10.3f}".format(info.st_size / 2**20) + "Mb"
                             newfiles.append(new_info)
 
@@ -150,16 +155,15 @@ class VideoFileSelf(Resource):
                         errors = result['errors']
                         code = result['code']
 
-            if code == 200:
-                result = get_url(office, manifest_data)
-                return result
-            else:
+            if code != 200:
                 return {
                     'videourl': '',
                     'errors': errors,
                     'code': code
                 }
 
+            result = get_url(office, manifest_data)
+            return result
         except Exception as error:
             return {'videourl': '',
                     'errors': str(error),

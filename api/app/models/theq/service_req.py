@@ -50,23 +50,18 @@ class ServiceReq(Base):
         #  If a generic invite type, event is either invitecitizen or returninvite.
         if invite_type == "generic":
             #  If only one SR, one period, an invitecitizen call, from First Time in Line state.
-            if sr_count == 1 and len(self.periods) == 2:
-                snowplow_event = "invitecitizen"
-            #  Otherwise from the Back in Line state.
-            else:
-                snowplow_event = "returninvite"
+            snowplow_event = (
+                "invitecitizen"
+                if sr_count == 1 and len(self.periods) == 2
+                else "returninvite"
+            )
 
-        #  A specific invite type.  Event is invitefromlist, returnfromlist or invitefromhold
+        elif sr_count == 1 and len(self.periods) == 2:
+            snowplow_event = "invitefromlist"
+        elif active_period.ps.ps_name == "Waiting":
+            snowplow_event = "returnfromlist"
         else:
-            #  If only one SR, one period, an invitefromlist call, from First Time in Line state.
-            if sr_count == 1 and len(self.periods) == 2:
-                snowplow_event = "invitefromlist"
-            #  Either from back in line or hold state.
-            else:
-                if active_period.ps.ps_name == "Waiting":
-                    snowplow_event = "returnfromlist"
-                else:
-                    snowplow_event = "invitefromhold"
+            snowplow_event = "invitefromhold"
 
         active_period.time_end = datetime.utcnow()
         # db.session.add(active_period)

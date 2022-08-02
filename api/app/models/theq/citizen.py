@@ -60,11 +60,10 @@ class Citizen(Base):
         super(Citizen, self).__init__(**kwargs)
 
     def get_active_service_request(self):
-        for sr in self.service_reqs:
-            if sr.sr_state.sr_code != 'Complete':
-                return sr
-
-        return None
+        return next(
+            (sr for sr in self.service_reqs if sr.sr_state.sr_code != 'Complete'),
+            None,
+        )
 
     def get_service_start_time(self):
         time_end = self.start_time

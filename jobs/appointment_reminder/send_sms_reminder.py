@@ -62,22 +62,20 @@ def send_reminders(app):
     """Send SMS reminders for next day appointments."""
     app.logger.debug('<<< Starting job')
 
-    reminders = get_reminders(app=app, reminder_type='sms')
-    if reminders:
+    if reminders := get_reminders(app=app, reminder_type='sms'):
         appointments = reminders.json()
         notifications_endpoint = app.config.get('NOTIFICATIONS_ENDPOINT')
         token: str = get_access_token(app)
-        notifications = []
-        for appointment in appointments.get('appointments'):
-            notifications.append({
+        if notifications := [
+            {
                 'user_telephone': appointment.get('user_telephone'),
                 'display_name': appointment.get('display_name'),
                 'location': appointment.get('location'),
                 'formatted_date': appointment.get('formatted_date'),
-                'office_telephone': appointment.get('telephone')
-            })
-
-        if notifications:
+                'office_telephone': appointment.get('telephone'),
+            }
+            for appointment in appointments.get('appointments')
+        ]:
             try:
                 response = requests.post(notifications_endpoint,
                                          headers={'Content-Type': 'application/json',

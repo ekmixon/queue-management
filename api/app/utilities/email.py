@@ -33,14 +33,18 @@ def get_cancel_email_contents(appt: Appointment, user, office, timezone):
     template = ENV.get_template('email_templates/delete_email.html')
     date, day = formatted_date(appt.start_time, timezone)
     subject = f'Cancelled – Your appointment on {day}'
-    body = template.render(display_name=appt.citizen_name,
-                           location=office.office_name,
-                           formatted_date=date,
-                           duration=get_duration(appt.start_time, appt.end_time),
-                           telephone=office.telephone,
-                           service_name=appt.service.external_service_name if appt.service.external_service_name else appt.service.service_name,
-                           civic_address=office.civic_address,
-                           url=current_app.config.get('EMAIL_APPOINTMENT_APP_URL'))
+    body = template.render(
+        display_name=appt.citizen_name,
+        location=office.office_name,
+        formatted_date=date,
+        duration=get_duration(appt.start_time, appt.end_time),
+        telephone=office.telephone,
+        service_name=appt.service.external_service_name
+        or appt.service.service_name,
+        civic_address=office.civic_address,
+        url=current_app.config.get('EMAIL_APPOINTMENT_APP_URL'),
+    )
+
     return subject, get_email(user, appt), sender, body
 
 
@@ -56,16 +60,20 @@ def get_reminder_email_contents(appt: Appointment, user, office, timezone):
 
     office_email_paragraph = appt.office.office_email_paragraph
 
-    body = template.render(display_name=appt.citizen_name,
-                           location=office.office_name,
-                           formatted_date=date,
-                           duration=get_duration(appt.start_time, appt.end_time),
-                           telephone=office.telephone,
-                           service_email_paragraph=service_email_paragraph,
-                           office_email_paragraph=office_email_paragraph,
-                           service_name=appt.service.external_service_name if appt.service.external_service_name else appt.service.service_name,
-                           civic_address=office.civic_address,
-                           url=current_app.config.get('EMAIL_APPOINTMENT_APP_URL'))
+    body = template.render(
+        display_name=appt.citizen_name,
+        location=office.office_name,
+        formatted_date=date,
+        duration=get_duration(appt.start_time, appt.end_time),
+        telephone=office.telephone,
+        service_email_paragraph=service_email_paragraph,
+        office_email_paragraph=office_email_paragraph,
+        service_name=appt.service.external_service_name
+        or appt.service.service_name,
+        civic_address=office.civic_address,
+        url=current_app.config.get('EMAIL_APPOINTMENT_APP_URL'),
+    )
+
     return subject, get_email(user, appt), sender, body
 
 
@@ -98,25 +106,26 @@ def get_confirmation_email_contents(appointment: Appointment, office, timezone, 
     template = ENV.get_template('email_templates/confirmation_email.html')
     date, day = formatted_date(appointment.start_time, timezone)
     subject = f'Confirmation – Your appointment on {day}'
-    body = template.render(display_name=appointment.citizen_name,
-                           location=office.office_name,
-                           formatted_date=date,
-                           duration=get_duration(appointment.start_time, appointment.end_time),
-                           telephone=office.telephone,
-                           service_email_paragraph=service_email_paragraph,
-                           office_email_paragraph=office_email_paragraph,
-                           # Default to Public online name if available
-                           service_name=appointment.service.external_service_name if appointment.service.external_service_name else appointment.service.service_name,
-                           civic_address=office.civic_address,
-                           url=current_app.config.get('EMAIL_APPOINTMENT_APP_URL'))
+    body = template.render(
+        display_name=appointment.citizen_name,
+        location=office.office_name,
+        formatted_date=date,
+        duration=get_duration(appointment.start_time, appointment.end_time),
+        telephone=office.telephone,
+        service_email_paragraph=service_email_paragraph,
+        office_email_paragraph=office_email_paragraph,
+        service_name=appointment.service.external_service_name
+        or appointment.service.service_name,
+        civic_address=office.civic_address,
+        url=current_app.config.get('EMAIL_APPOINTMENT_APP_URL'),
+    )
+
     return subject, get_email(user, appointment), sender, body
 
 
 def is_valid_email(email: str):
     """Return if the email is valid or not."""
-    if email:
-        return re.match(r'[^@]+@[^@]+\.[^@]+', email) is not None
-    return False
+    return re.match(r'[^@]+@[^@]+\.[^@]+', email) is not None if email else False
 
 
 def formatted_date(dt: datetime, timezone):
@@ -130,10 +139,9 @@ def get_duration(start_time: datetime, end_time: datetime):
 
 def get_email(user, appointment):
     if user:
-        contact_email = user.email if user.send_email_reminders else None
+        return user.email if user.send_email_reminders else None
     else:
-        contact_email = appointment.contact_information
-    return contact_email
+        return appointment.contact_information
 
 
 def get_walkin_spot_confirmation_email_contents(citizen: Citizen, url, office: Office):
@@ -141,7 +149,6 @@ def get_walkin_spot_confirmation_email_contents(citizen: Citizen, url, office: O
     sender = current_app.config.get('MAIL_FROM_ID')
 
     template = ENV.get_template('email_templates/walkin_spot_confirmation.html')
-    subject = f'Your spot is saved'
     body = template.render(display_name=citizen.citizen_name,
                            location=office.office_name,
                            telephone=office.telephone,
@@ -150,10 +157,11 @@ def get_walkin_spot_confirmation_email_contents(citizen: Citizen, url, office: O
                            ticket_numer=citizen.ticket_number
     )
     citizen = Citizen.query.filter_by(citizen_id=citizen.citizen_id).first()
-    if is_valid_email(citizen.notification_email):
-        return subject, citizen.notification_email, sender, body
-    else:
-        return False
+    return (
+        ('Your spot is saved', citizen.notification_email, sender, body)
+        if is_valid_email(citizen.notification_email)
+        else False
+    )
 
 
 def get_walkin_reminder_email_contents(citizen: Citizen, office: Office):
@@ -161,16 +169,18 @@ def get_walkin_reminder_email_contents(citizen: Citizen, office: Office):
     sender = current_app.config.get('MAIL_FROM_ID')
 
     template = ENV.get_template('email_templates/walkin_reminder.html')
-    subject = f'Walk-In Reminder'
     msg = "We’re ready! Please come inside and speak to a Service BC Representative"
-    body = template.render(display_name=citizen.citizen_name,
-                           location=office.office_name,
-                           telephone=office.telephone,
-                           civic_address=office.civic_address,
-                           reminder_msg=office.check_in_reminder_msg if office.check_in_reminder_msg else msg,
+    body = template.render(
+        display_name=citizen.citizen_name,
+        location=office.office_name,
+        telephone=office.telephone,
+        civic_address=office.civic_address,
+        reminder_msg=office.check_in_reminder_msg or msg,
     )
+
     citizen = Citizen.query.filter_by(citizen_id=citizen.citizen_id).first()
-    if is_valid_email(citizen.notification_email):
-        return subject, citizen.notification_email, sender, body
-    else:
-        return False
+    return (
+        ('Walk-In Reminder', citizen.notification_email, sender, body)
+        if is_valid_email(citizen.notification_email)
+        else False
+    )

@@ -18,5 +18,4 @@ import os
 def get_feedback_service():
     from .feedback_camunda_service import FeedbackCamundaService
     """Return Feedback Service implementation."""
-    _instance: FeedbackBaseService = FeedbackCamundaService()
-    return _instance
+    return FeedbackCamundaService()

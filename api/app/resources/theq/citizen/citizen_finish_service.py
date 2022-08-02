@@ -36,7 +36,10 @@ class CitizenFinishService(Resource):
     def post(self, id):
         csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
         citizen = Citizen.query.filter_by(citizen_id=id).first()
-        my_print("==> POST /citizens/" + str(citizen.citizen_id) + '/finish_service/, Ticket: ' + citizen.ticket_number)
+        my_print(
+            f"==> POST /citizens/{str(citizen.citizen_id)}/finish_service/, Ticket: {citizen.ticket_number}"
+        )
+
         active_service_request = citizen.get_active_service_request()
         inaccurate = request.args.get('inaccurate')
 
@@ -73,7 +76,7 @@ class CitizenFinishService(Resource):
                                             quantity = sr.quantity,
                                             current_sr_number= sr.sr_number)
 
-        socketio.emit('citizen_invited', {}, room='sb-%s' % csr.office.office_number)
+        socketio.emit('citizen_invited', {}, room=f'sb-{csr.office.office_number}')
         result = self.citizen_schema.dump(citizen)
         socketio.emit('update_active_citizen', result, room=csr.office_id)
 

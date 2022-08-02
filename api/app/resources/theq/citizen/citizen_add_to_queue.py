@@ -39,7 +39,10 @@ class CitizenAddToQueue(Resource):
         citizen = Citizen.query.filter_by(citizen_id=id).first()
         active_service_request = citizen.get_active_service_request()
 
-        my_print("==> POST /citizens/" + str(citizen.citizen_id) + '/add_to_queue, Ticket: ' + citizen.ticket_number)
+        my_print(
+            f"==> POST /citizens/{str(citizen.citizen_id)}/add_to_queue, Ticket: {citizen.ticket_number}"
+        )
+
 
         if active_service_request is None:
             return {"message": "Citizen has no active service requests"}
@@ -48,10 +51,10 @@ class CitizenAddToQueue(Resource):
         snowplow_call = "addtoqueue"
         if len(citizen.service_reqs) != 1 or len(active_service_request.periods) != 1:
             active_period = active_service_request.get_active_period()
-            if active_period.ps.ps_name == "Invited":
-                snowplow_call = "queuefromprep"
-            elif active_period.ps.ps_name == "Being Served":
+            if active_period.ps.ps_name == "Being Served":
                 snowplow_call = "returntoqueue"
+            elif active_period.ps.ps_name == "Invited":
+                snowplow_call = "queuefromprep"
             else:
                 #  TODO:  Put in a Feedback Slack/Service now call here.
                 return {"message": "Invalid citizen/period state. "}
@@ -71,7 +74,7 @@ class CitizenAddToQueue(Resource):
                     if appointment_portal_url and citizen.walkin_unique_id:
                         if appointment_portal_url.endswith('/'):
                             appointment_portal_url = appointment_portal_url[:-1]
-                        url = "{}/{}/{}".format(appointment_portal_url, 'walk-in-Q', citizen.walkin_unique_id)
+                        url = f"{appointment_portal_url}/walk-in-Q/{citizen.walkin_unique_id}"
                     # email
                     email_sent = False
                     if citizen.notification_email:
@@ -94,16 +97,16 @@ class CitizenAddToQueue(Resource):
                     citizen.reminder_flag = 0
                     citizen.notification_sent_time = datetime.utcnow()
         except Exception as err:
-            logging.error('{}'.format(str(err)))
+            logging.error(f'{str(err)}')
             pprint(err)
 
         db.session.add(citizen)
         db.session.commit()
 
         socketio.emit('update_customer_list', {}, room=csr.office_id)
-        socketio.emit('citizen_invited', {}, room='sb-%s' % csr.office.office_number)
+        socketio.emit('citizen_invited', {}, room=f'sb-{csr.office.office_number}')
         result = self.citizen_schema.dump(citizen)
         socketio.emit('update_active_citizen', result, room=csr.office_id)
-        
+
         return {'citizen': result,
                 'errors': self.citizen_schema.validate(citizen)}, 200

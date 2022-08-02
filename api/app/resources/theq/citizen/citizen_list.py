@@ -38,10 +38,13 @@ class CitizenList(Resource):
             has_role([Role.internal_user.value], g.jwt_oidc_token_info['realm_access']['roles'], user, "CitizenList GET /citizens/")
             csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
             if not csr:
-                raise Exception('no user found with username: `{}`'.format(g.jwt_oidc_token_info['username']))
+                raise Exception(
+                    f"no user found with username: `{g.jwt_oidc_token_info['username']}`"
+                )
+
             citizens = Citizen.query.filter_by(office_id=csr.office_id, cs_id=active_id) \
-                .order_by(Citizen.priority) \
-                .join(Citizen.service_reqs).all()
+                    .order_by(Citizen.priority) \
+                    .join(Citizen.service_reqs).all()
             result = self.citizens_schema.dump(citizens)
             return {'citizens': result,
                     'errors': self.citizens_schema.validate(citizens)}, 200
@@ -62,7 +65,10 @@ class CitizenList(Resource):
 
         csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
         if not csr:
-            raise Exception('no user found with username: `{}`'.format(g.jwt_oidc_token_info['username']))
+            raise Exception(
+                f"no user found with username: `{g.jwt_oidc_token_info['username']}`"
+            )
+
 
         try:
             citizen = self.citizen_schema.load(json_data)

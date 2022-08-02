@@ -20,5 +20,5 @@ class Base(db.Model, object):
     __abstract__ = True
 
     @declared_attr
-    def __tablename__(cls):
-        return cls.__name__.lower()
+    def __tablename__(self):
+        return self.__name__.lower()

@@ -60,7 +60,7 @@ def create_app(run_mode=os.getenv('FLASK_ENV', 'production')):
     app = Flask(__name__)
 
     app.config.from_object(config.CONFIGURATION[run_mode])
-    app.logger.info(f'<<<< Starting Flush Expired Drafts Jobs >>>>')
+    app.logger.info('<<<< Starting Flush Expired Drafts Jobs >>>>')
     db.init_app(app)
 
     register_shellcontext(app)

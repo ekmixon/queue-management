@@ -43,7 +43,7 @@ class AvailabilityService():
                 appointment_duration = service.timeslot_duration
 
             service_is_dltk = service and service.is_dlkt == YesNo.YES
-            
+
             # Dictionary to store the available slots per day
             tz = pytz.timezone(office.timezone.timezone_name)
 
@@ -75,10 +75,10 @@ class AvailabilityService():
 
                         # Cannot exceed office timeslot slots.
                         dlkt_slots = office.number_of_dlkt  or 0
-    
+
                         if ( dlkt_slots > timeslot.no_of_slots):
                             dlkt_slots = timeslot.no_of_slots
-                        
+
 
                         # Limit DLKT slots only for DLKT services.
                         # no_of_slots = dlkt_slots if service_is_dltk else timeslot.no_of_slots
@@ -93,9 +93,13 @@ class AvailabilityService():
                             }
                             # Check if today's time is past appointment slot
                             # Arc - also check if in office.soonest_appointment
-                            if not (today.date() == day_in_month.date() and soonest_appointment_date.time() > start_time):
-                                if slot not in available_slots_per_day[formatted_date]: 
-                                    available_slots_per_day[formatted_date].append(slot)
+                            if (
+                                today.date() != day_in_month.date()
+                                or soonest_appointment_date.time() <= start_time
+                            ) and slot not in available_slots_per_day[
+                                formatted_date
+                            ]:
+                                available_slots_per_day[formatted_date].append(slot)
 
                             start_time = end_time.replace(tzinfo=tz)
                             end_time = add_delta_to_time(end_time, minutes=appointment_duration,
@@ -110,12 +114,12 @@ class AvailabilityService():
                     booked_dlkt_slots = 0
                     for booked_slot in grouped_appointments.get(formatted_date, []):
                         if booked_slot.get('start_time') \
-                                <= actual_slot.get('start_time') \
-                                < booked_slot.get('end_time') \
-                                or \
-                                actual_slot.get('end_time') \
-                                > booked_slot.get('start_time') \
-                                >= actual_slot.get('start_time'):
+                                    <= actual_slot.get('start_time') \
+                                    < booked_slot.get('end_time') \
+                                    or \
+                                    actual_slot.get('end_time') \
+                                    > booked_slot.get('start_time') \
+                                    >= actual_slot.get('start_time'):
                             # print('>>>actual_slot.get(start_time)', actual_slot.get('start_time'))
                             # print('>>>actual_slot.get(end_time)', actual_slot.get('end_time'))
                             # print('>>>booked_slot.get(start_time)', booked_slot.get('start_time'))
@@ -125,11 +129,10 @@ class AvailabilityService():
 
                             if booked_slot.get('blackout_flag', False):  # If it's blackout override the no of slots
                                 actual_slot['no_of_slots'] = 0
-                            else:
-                                if  booked_slot['is_dlkt']:
-                                    booked_dlkt_slots += 1
-                                else:   
-                                    booked_slots += 1   
+                            elif booked_slot['is_dlkt']:
+                                booked_dlkt_slots += 1
+                            else:   
+                                booked_slots += 1
                     if service_is_dltk:
                         dlkt_nos = actual_slot['no_of_dlkt_slots'] - booked_dlkt_slots
                         if actual_slot['no_of_slots'] <= (booked_slots + booked_dlkt_slots):
@@ -142,7 +145,7 @@ class AvailabilityService():
                        actual_slot['no_of_slots']  =  actual_slot['no_of_slots'] - (booked_slots + booked_dlkt_slots)
 
                     del actual_slot['no_of_dlkt_slots'] # no need to expose
-                       
+
                     if format_time:  # If true send formatted time
                         actual_slot['start_time'] = actual_slot['start_time'].strftime('%H:%M')
                         actual_slot['end_time'] = actual_slot['end_time'].strftime('%H:%M')

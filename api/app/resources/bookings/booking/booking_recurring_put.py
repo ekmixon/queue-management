@@ -39,15 +39,13 @@ class BookingRecurringPut(Resource):
             return {"message": "No input data received for updating recurring bookings"}
 
         bookings = Booking.query.filter_by(recurring_uuid=id)\
-                                .filter_by(office_id=csr.office_id)\
-                                .all()
+                                    .filter_by(office_id=csr.office_id)\
+                                    .all()
 
         for booking in bookings:
 
             booking = self.booking_schema.load(json_data, instance=booking, partial=True)
-            warning = self.booking_schema.validate(json_data)
-
-            if warning:
+            if warning := self.booking_schema.validate(json_data):
                 logging.warning('WARNING: %s', warning)
                 return {"message": warning}, 422
 

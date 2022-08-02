@@ -43,10 +43,7 @@ def add_delta_to_time(time: time, timezone, minutes: int = 0, seconds: int = 0):
 
 def day_indexes(days):
     """Return the integer index with respect to the string."""
-    integer_indexes = list()
-    for day in days:
-        integer_indexes.append(days_mapping[day])
-    return integer_indexes
+    return [days_mapping[day] for day in days]
 
 
 def current_pacific_time():

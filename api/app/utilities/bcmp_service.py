@@ -24,16 +24,16 @@ class BCMPService:
             request_data = None
 
         my_print("=== SENDING BCMP REQUEST ===")
-        my_print("  ==> url: %s" % path)
-        my_print("  ==> method: %s" % method)
-        my_print("  ==> data: %s" % request_data)
+        my_print(f"  ==> url: {path}")
+        my_print(f"  ==> method: {method}")
+        my_print(f"  ==> data: {request_data}")
         req = urllib.request.Request(path, data=request_data, method=method)
         req.add_header('Content-Type', 'application/json')
         my_print('request')
         my_print(req)
 
         response = urllib.request.urlopen(req)
-        
+
 
         response_data = response.read().decode('utf8')
         my_print(response_data)
@@ -41,11 +41,14 @@ class BCMPService:
         try:
             return json.loads(response_data)
         except json.decoder.JSONDecodeError:
-            logging.warning("Error decoding JSON response data. Response data: %s" % response_data)
+            logging.warning(
+                f"Error decoding JSON response data. Response data: {response_data}"
+            )
+
             return False
 
     def check_exam_status(self, exam):
-        url = "%s/auth=env_exam;%s/JSON/status" % (self.base_url, self.auth_token)
+        url = f"{self.base_url}/auth=env_exam;{self.auth_token}/JSON/status"
         data = {
             "jobs": [
                 exam.bcmp_job_id
@@ -62,7 +65,7 @@ class BCMPService:
         return False
 
     def bulk_check_exam_status(self, exams):
-        url = "%s/auth=env_exam;%s/JSON/status" % (self.base_url, self.auth_token)
+        url = f"{self.base_url}/auth=env_exam;{self.auth_token}/JSON/status"
         data = {
             "jobs": []
         }
@@ -76,24 +79,16 @@ class BCMPService:
         return response
 
     def create_individual_exam(self, exam, exam_fees, invigilator, pesticide_office, oidc_token_info):
-        url = "%s/auth=env_exam;%s/JSON/create:ENV-IPM-EXAM" % (self.base_url, self.auth_token)
+        url = f"{self.base_url}/auth=env_exam;{self.auth_token}/JSON/create:ENV-IPM-EXAM"
 
-        office_name = None
-        if pesticide_office:
-            office_name = pesticide_office.office_name
 
-        receipt_number = "%s fees" % exam_fees
+        office_name = pesticide_office.office_name if pesticide_office else None
+        receipt_number = f"{exam_fees} fees"
         if exam.receipt:
             receipt_number = exam.receipt
-        
-        exam_type_name = None
-        if exam.exam_type:
-            exam_type_name = exam.exam_type.exam_type_name
 
-        invigilator_name = None
-        if invigilator:
-            invigilator_name = invigilator.invigilator_name
-
+        exam_type_name = exam.exam_type.exam_type_name if exam.exam_type else None
+        invigilator_name = invigilator.invigilator_name if invigilator else None
         bcmp_exam = {
             "EXAM_SESSION_LOCATION" : office_name,
             "REGISTRAR_name" : oidc_token_info['preferred_username'],
@@ -113,16 +108,13 @@ class BCMPService:
             ]
         }
 
-        response = self.send_request(url, 'POST', bcmp_exam)
-        return response
+        return self.send_request(url, 'POST', bcmp_exam)
 
     def create_group_exam_bcmp(self, exam, booking, candiate_list, invigilator, pesticide_office, oidc_token_info):
-        url = "%s/auth=env_exam;%s/JSON/create:ENV-IPM-EXAM-GROUP" % (self.base_url, self.auth_token)
+        url = f"{self.base_url}/auth=env_exam;{self.auth_token}/JSON/create:ENV-IPM-EXAM-GROUP"
 
-        invigilator_name = None
-        if invigilator:
-            invigilator_name = invigilator.invigilator_name
 
+        invigilator_name = invigilator.invigilator_name if invigilator else None
         office_name = None
         time_zone = pytz.timezone('America/Vancouver')
         if pesticide_office:
@@ -165,11 +157,11 @@ class BCMPService:
                 "FEE_PAYMENT_NOTES": ""
             })
 
-        response = self.send_request(url, 'POST', bcmp_exam)
-        return response
+        return self.send_request(url, 'POST', bcmp_exam)
 
     def create_group_exam(self, exam):
-        url = "%s/auth=env_exam;%s/JSON/create:ENV-IPM-EXAM" % (self.base_url, self.auth_token)
+        url = f"{self.base_url}/auth=env_exam;{self.auth_token}/JSON/create:ENV-IPM-EXAM"
+
 
         bcmp_exam = {
             "students": []
@@ -178,11 +170,11 @@ class BCMPService:
         for s in exam.students:
             bcmp_exam["students"].append({"name": s.name})
 
-        response = self.send_request(url, 'POST', bcmp_exam)
-        return response
+        return self.send_request(url, 'POST', bcmp_exam)
 
     def send_exam_to_bcmp(self, exam):
-        url = "%s/auth=env_exam;%s/JSON/create:ENV-IPM-EXAM-API-ACTION" % (self.base_url, self.auth_token)
+        url = f"{self.base_url}/auth=env_exam;{self.auth_token}/JSON/create:ENV-IPM-EXAM-API-ACTION"
+
 
         client = DocumentService(
             application.config["MINIO_HOST"],
@@ -192,7 +184,7 @@ class BCMPService:
             application.config["MINIO_USE_SECURE"]
         )
 
-        filename = "%s.pdf" % exam.exam_id
+        filename = f"{exam.exam_id}.pdf"
 
         presigned_url = client.get_presigned_get_url(filename)
         json_data = {
@@ -203,11 +195,11 @@ class BCMPService:
             }
         }
 
-        response = self.send_request(url, 'POST', json_data)
-        return response
+        return self.send_request(url, 'POST', json_data)
 
     def email_exam_invigilator(self, exam, invigilator_name, invigilator_email, invigilator_phone):
-        url = "%s/auth=env_exam;%s/JSON/create:ENV-IPM-EXAM-API-ACTION" % (self.base_url, self.auth_token)
+        url = f"{self.base_url}/auth=env_exam;{self.auth_token}/JSON/create:ENV-IPM-EXAM-API-ACTION"
+
 
         json_data = {
             "action": {
@@ -219,6 +211,4 @@ class BCMPService:
             }
         }
 
-        response = self.send_request(url, "POST", json_data)
-
-        return response
+        return self.send_request(url, "POST", json_data)

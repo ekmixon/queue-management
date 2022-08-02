@@ -38,8 +38,8 @@ class Smartboard(Resource):
             active_citizen_state = CitizenState.query.filter_by(cs_state_name="Active").first()
 
             citizens = Citizen.query.filter_by(office_id=office.office_id) \
-                .filter_by(cs_id=active_citizen_state.cs_id) \
-                .join(ServiceReq, aliased=True)
+                    .filter_by(cs_id=active_citizen_state.cs_id) \
+                    .join(ServiceReq, aliased=True)
 
             citizens_waiting = []
 
@@ -64,19 +64,16 @@ class Smartboard(Resource):
                 else:
                     #  Display error to console, no other action taken.
                     print("==> Error in Smartboard: Citizen has no active service request. " \
-                            + "Possible cause, category, not service, selected.")
+                                + "Possible cause, category, not service, selected.")
 
             return {
                 "office_type": office.sb.sb_type,
                 "citizens": citizens_waiting
             }
 
-        except exc.SQLAlchemyError as e:
+        except (exc.SQLAlchemyError, TypeError) as e:
             print(e)
             return {'message': 'API is down'}, 500
-        except TypeError as e:
-            print(e)
-            return {'message': 'office_number must be an integer.'}, 400
         except ValueError as e:
             print(e)
             return {'message': 'office_number must be an integer.'}, 400
@@ -90,10 +87,12 @@ class SmartBoradQMenu(Resource):
         try:
             # get office details from url id
             office = Office.query.filter_by(office_number=id).first()
-            if not office:
-                return {'message': 'office_number could not be found.'}, 400
-            else:
-                return {'office': self.office_schema.dump(office)}, 200
+            return (
+                ({'office': self.office_schema.dump(office)}, 200)
+                if office
+                else ({'message': 'office_number could not be found.'}, 400)
+            )
+
         except exc.SQLAlchemyError as e:
             print(e)
             return {'message': 'API is down'}, 500

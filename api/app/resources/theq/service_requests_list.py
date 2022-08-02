@@ -29,7 +29,7 @@ def get_service_request(self, json_data, csr):
 
     if not json_data:
         print("==> No json_data in POST /service_requests/")
-        print("    --> CSR:       " + csr.username)
+        print(f"    --> CSR:       {csr.username}")
         return (None, "No input data received for creating service request", 400)
 
     try:
@@ -37,20 +37,20 @@ def get_service_request(self, json_data, csr):
 
     except ValidationError as err:
         print("==> ValidationError in POST /service_requests/")
-        print("    --> CSR:       " + csr.username)
+        print(f"    --> CSR:       {csr.username}")
         print(err)
         return (None, err.messages, 422)
     except KeyError as err:
         print("==> No service_request parameter in POST /service_requests/")
-        print("    --> CSR:       " + csr.username)
-        print("    --> json_data: " + json.dumps(json_data))
+        print(f"    --> CSR:       {csr.username}")
+        print(f"    --> json_data: {json.dumps(json_data)}")
         print(err)
         return (None, str(err), 422)
 
     #  If service request is null, an error.
     if service_request is None:
         print("==> service_request is None in POST /service_requests/, error in schema.load")
-        print("    --> CSR:       " + csr.username)
+        print(f"    --> CSR:       {csr.username}")
         print("    --> json_data: " + json.dumps(json_data['service_request']))
         return (None, "Service request is none trying to create service request", 400)
 
@@ -64,14 +64,19 @@ def get_service(service_request, json_data, csr):
         service = Service.query.get(service_request.service_id)
     except:
         print("==> An exception getting service info")
-        print("    --> CSR:       " + csr.username)
+        print(f"    --> CSR:       {csr.username}")
         print("    --> json_data: " + json.dumps(json_data['service_request']))
-        return (None, ("Could not find service for service_id: " + str(service_request.service_id)), 400)
+        return (
+            None,
+            f"Could not find service for service_id: {str(service_request.service_id)}",
+            400,
+        )
+
 
     if service.parent_id is None:
         print("==> CSR has selected a category, rather than a service.  This should not be possible")
-        print("    --> CSR:       " + csr.username)
-        print("    --> Service:   " + service.service_name)
+        print(f"    --> CSR:       {csr.username}")
+        print(f"    --> Service:   {service.service_name}")
         return (None, "CSR has selected a category, rather than a service. Should not be possible", 400)
 
     return (service, "", 200)
@@ -103,7 +108,7 @@ class ServiceRequestsList(Resource):
             citizen = Citizen.query.get(service_request.citizen_id)
         except:
             print("==> An exception getting citizen info")
-            print("    --> CSR:       " + csr.username)
+            print(f"    --> CSR:       {csr.username}")
             print("    --> json_data: " + json.dumps(json_data['service_request']))
 
         if citizen is None:
@@ -142,12 +147,12 @@ class ServiceRequestsList(Resource):
             offset_start_time = citizen.start_time - timedelta(hours=6)
 
             service_count = ServiceReq.query \
-                    .join(ServiceReq.citizen, aliased=True) \
-                    .filter(Citizen.start_time >= offset_start_time.strftime("%Y-%m-%d")) \
-                    .filter_by(office_id=csr.office_id) \
-                    .join(ServiceReq.service, aliased=True) \
-                    .filter_by(prefix=service.prefix) \
-                    .count()
+                        .join(ServiceReq.citizen, aliased=True) \
+                        .filter(Citizen.start_time >= offset_start_time.strftime("%Y-%m-%d")) \
+                        .filter_by(office_id=csr.office_id) \
+                        .join(ServiceReq.service, aliased=True) \
+                        .filter_by(prefix=service.prefix) \
+                        .count()
 
             citizen.ticket_number = service.prefix + str(service_count)
         else:

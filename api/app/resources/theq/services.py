@@ -36,82 +36,81 @@ class Refresh(Resource):
     """
     @jwt.has_one_of_roles([Role.internal_user.value])
     def get(self):
-        if request.args.get('office_id'):
-            office_id = int(request.args.get('office_id'))
-            csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
-            
-            if csr.role.role_code == "GA":
-            
-                if csr.office_id != office_id:
-                    return {'message': 'This is not your office, cannot refresh.'}, 403
-            
-            elif csr.role.role_code != "SUPPORT":
-                return {'message': 'You do not have permission to view this end-point'}, 403
-            
-            def top_reqs(is_back_office=True):
-
-                # Get top requests for the office, and set the lists based on those.
-                
-                results = ServiceReq.query.options(
-                    noload('*'), joinedload('service')
-                ).join(
-                    Citizen
-                ).join(
-                    Service
-                ).filter(
-                    Citizen.office_id == office_id,
-                ).filter(
-                    Service.deleted.is_(None)
-                )
-                if is_back_office:
-                    results = results.filter(
-                        Service.display_dashboard_ind == 0,
-                    )
-                else:
-                    results = results.filter(
-                        Service.display_dashboard_ind == 1,
-                    )
-                results = results.order_by(
-                    ServiceReq.sr_id.desc()
-                ).limit(100)
-                
-                print("start *****************************")
-                print(results.statement)
-                print("end *****************************")
-
-                # Some fancy dicts to collect the top 5 services in a list.
-                counts = {}
-                services = {}
-                byname = {}
-                for result in results:
-                    service_ct = counts.get(result.service_id, 0)
-                    counts[result.service_id] = service_ct + 1
-                    services[result.service_id] = result
-                    byname[result.service.service_name] = counts[result.service_id]
-                
-                counts = list(counts.items())
-                counts.sort(key=lambda x: x[1]) # sort by quantity.
-                counts = counts[-5:]
-
-                print("Results of refresh call for office {} : {}".format(office_id, byname))
-
-                service_ids = [c[0] for c in counts]
-
-                print("List chosen: {}".format([r.service.service_name for r in services.values() if r.service_id in service_ids]))
-
-                return [r.service for r in services.values() if r.service_id in service_ids]
-
-            quick_list = top_reqs(is_back_office=False)
-            back_office_list = top_reqs(is_back_office=True)
-
-            office = Office.query.get(office_id)
-            office.quick_list =  quick_list
-            office.back_office_list = back_office_list
-            db.session.commit()
-
-            return OfficeSchema().dump(office)
-        else:
+        if not request.args.get('office_id'):
             return {'message': 'no office specified'}, 400
+        office_id = int(request.args.get('office_id'))
+        csr = CSR.find_by_username(g.jwt_oidc_token_info['username'])
+
+        if csr.role.role_code == "GA":
+
+            if csr.office_id != office_id:
+                return {'message': 'This is not your office, cannot refresh.'}, 403
+
+        elif csr.role.role_code != "SUPPORT":
+            return {'message': 'You do not have permission to view this end-point'}, 403
+
+        def top_reqs(is_back_office=True):
+
+            # Get top requests for the office, and set the lists based on those.
+
+            results = ServiceReq.query.options(
+                noload('*'), joinedload('service')
+            ).join(
+                Citizen
+            ).join(
+                Service
+            ).filter(
+                Citizen.office_id == office_id,
+            ).filter(
+                Service.deleted.is_(None)
+            )
+            if is_back_office:
+                results = results.filter(
+                    Service.display_dashboard_ind == 0,
+                )
+            else:
+                results = results.filter(
+                    Service.display_dashboard_ind == 1,
+                )
+            results = results.order_by(
+                ServiceReq.sr_id.desc()
+            ).limit(100)
+
+            print("start *****************************")
+            print(results.statement)
+            print("end *****************************")
+
+            # Some fancy dicts to collect the top 5 services in a list.
+            counts = {}
+            services = {}
+            byname = {}
+            for result in results:
+                service_ct = counts.get(result.service_id, 0)
+                counts[result.service_id] = service_ct + 1
+                services[result.service_id] = result
+                byname[result.service.service_name] = counts[result.service_id]
+
+            counts = list(counts.items())
+            counts.sort(key=lambda x: x[1]) # sort by quantity.
+            counts = counts[-5:]
+
+            print("Results of refresh call for office {} : {}".format(office_id, byname))
+
+            service_ids = [c[0] for c in counts]
+
+            print("List chosen: {}".format([r.service.service_name for r in services.values() if r.service_id in service_ids]))
+
+            return [r.service for r in services.values() if r.service_id in service_ids]
+
+        quick_list = top_reqs(is_back_office=False)
+        back_office_list = top_reqs(is_back_office=True)
+
+        office = Office.query.get(office_id)
+        office.quick_list =  quick_list
+        office.back_office_list = back_office_list
+        db.session.commit()
+
+        return OfficeSchema().dump(office)
 
 
 @api.route("/services/", methods=["GET"])
@@ -126,11 +125,8 @@ class Services(Resource):
             return -1
         elif a.parent is not None and b.parent is None:
             return 1
-        elif (a.parent is None and b.parent is None) or (a.parent == b.parent):
-            if a.service_name.lower() < b.service_name.lower():
-                return -1
-            else:
-                return 1
+        elif a.parent is None or a.parent == b.parent:
+            return -1 if a.service_name.lower() < b.service_name.lower() else 1
         else:
             if a.parent.service_name.lower() < b.parent.service_name.lower():
                 return -1

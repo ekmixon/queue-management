@@ -74,35 +74,37 @@ class SnowPlow():
     def snowplow_event(citizen_id, csr, schema, period_count = 0, quantity = 0, current_sr_number = 0):
 
         #  Make sure you want to track calls.
-        if SnowPlow.call_snowplow_flag:
+        if not SnowPlow.call_snowplow_flag:
+            return
+        #  Set up the contexts for the call.
+        citizen_obj = Citizen.query.get(citizen_id)
+        citizen = SnowPlow.get_citizen(citizen_obj, csr.counter.counter_name, svc_number = current_sr_number)
+        office = SnowPlow.get_office(csr.office_id)
+        agent = SnowPlow.get_csr(csr, office)
 
-            #  Set up the contexts for the call.
-            citizen_obj = Citizen.query.get(citizen_id)
-            citizen = SnowPlow.get_citizen(citizen_obj, csr.counter.counter_name, svc_number = current_sr_number)
-            office = SnowPlow.get_office(csr.office_id)
-            agent = SnowPlow.get_csr(csr, office)
+            #  If finish or hold events, parameters need to be built.
+        if schema in ["finish", "finishstopped"]:
+            snowplow_event = SnowPlow.get_finish(quantity, citizen_obj.accurate_time_ind, schema)
 
+        elif schema == "hold":
+            snowplow_event = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/hold/jsonschema/1-0-0',
+                                            {"time": 0})
+
+        elif schema[:5] == "left/":
+            snowplow_event = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/customerleft/jsonschema/2-0-0',
+                                                {"leave_status": schema[5:]})
+
+        else:
             #  Initialize schema version.
             schema_version = "1-0-0"
 
-            #  If finish or hold events, parameters need to be built.
-            if (schema == "finish") or (schema == "finishstopped"):
-                snowplow_event = SnowPlow.get_finish(quantity, citizen_obj.accurate_time_ind, schema)
+            snowplow_event = SelfDescribingJson(
+                f'iglu:ca.bc.gov.cfmspoc/{schema}/jsonschema/{schema_version}', {}
+            )
 
-            elif schema == "hold":
-                snowplow_event = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/hold/jsonschema/1-0-0',
-                                                {"time": 0})
 
-            elif schema[:5] == "left/":
-                snowplow_event = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/customerleft/jsonschema/2-0-0',
-                                                    {"leave_status": schema[5:]})
-
-            #  Most Snowplow events don't have parameters, so don't have to be built.
-            else:
-                snowplow_event = SelfDescribingJson( 'iglu:ca.bc.gov.cfmspoc/' + schema + '/jsonschema/' + schema_version, {})
-
-            #  Make the call.
-            SnowPlow.make_tracking_call(snowplow_event, citizen, office, agent)
+        #  Make the call.
+        SnowPlow.make_tracking_call(snowplow_event, citizen, office, agent)
 
     @staticmethod
     def snowplow_appointment(citizen_obj, csr, appointment, schema):
@@ -139,7 +141,10 @@ class SnowPlow():
 
     @staticmethod
     def failure(count, failed):
-        print("###################  " + str(count) + " events sent successfuly.  Events below failed:")
+        print(
+            f"###################  {str(count)} events sent successfuly.  Events below failed:"
+        )
+
         for event_dict in failed:
             print(event_dict)
 
@@ -152,12 +157,14 @@ class SnowPlow():
         elif citizen_obj.counter is not None:
             citizen_type = citizen_obj.counter.counter_name
 
-        # Set up the citizen context.
-        citizen = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/citizen/jsonschema/4-0-0',
-                                      {"client_id": citizen_obj.citizen_id, "service_count": svc_number,
-                                       "counter_type": citizen_type})
-
-        return citizen
+        return SelfDescribingJson(
+            'iglu:ca.bc.gov.cfmspoc/citizen/jsonschema/4-0-0',
+            {
+                "client_id": citizen_obj.citizen_id,
+                "service_count": svc_number,
+                "counter_type": citizen_type,
+            },
+        )
 
     @staticmethod
     def get_office(id):
@@ -166,14 +173,13 @@ class SnowPlow():
         curr_office = Office.query.get(id)
         office_num = curr_office.office_number
         office_type = "non-reception"
-        if (curr_office.sb.sb_type == "callbyname") or (curr_office.sb.sb_type == "callbyticket"):
+        if curr_office.sb.sb_type in ["callbyname", "callbyticket"]:
             office_type = "reception"
 
-        #  Set up the office context.
-        office = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/office/jsonschema/1-0-0',
-                                     {"office_id": office_num, "office_type": office_type})
-
-        return office
+        return SelfDescribingJson(
+            'iglu:ca.bc.gov.cfmspoc/office/jsonschema/1-0-0',
+            {"office_id": office_num, "office_type": office_type},
+        )
 
     @staticmethod
     def get_csr(csr, office, csr_id = 1000001, counter_name = "Counter", role_name="WebSelfServe"):
@@ -201,13 +207,10 @@ class SnowPlow():
             elif (role_name == 'HELPDESK'):
                 role_name = "Helpdesk"
 
-        #  Set up the CSR context.
-        agent = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/agent/jsonschema/3-0-2',
-                                   {"agent_id": csr_id,
-                                    "role": role_name,
-                                    "counter_type": counter_name})
-
-        return agent
+        return SelfDescribingJson(
+            'iglu:ca.bc.gov.cfmspoc/agent/jsonschema/3-0-2',
+            {"agent_id": csr_id, "role": role_name, "counter_type": counter_name},
+        )
 
     @staticmethod
     def get_service(service_request):
@@ -223,43 +226,46 @@ class SnowPlow():
         channel_name = channel.channel_name
 
         #  Translate channel name to old versions, to avoid major Snowplow changes
-        if (channel_name == 'In Person'):
-            snowplow_channel = "in-person"
-        elif (channel_name == 'Phone'):
-            snowplow_channel = "phone"
-        elif (channel_name == 'Back Office'):
+        if channel_name == 'Back Office':
             snowplow_channel = "back-office"
-        elif (channel_name == 'Email/Fax/Mail'):
-            snowplow_channel = "email-fax-mail"
-        elif (channel_name == 'CATs Assist'):
+        elif channel_name == 'CATs Assist':
             snowplow_channel = "cats-assist"
-        elif (channel_name == 'Mobile Assist'):
+        elif channel_name == 'Email/Fax/Mail':
+            snowplow_channel = "email-fax-mail"
+        elif channel_name == 'In Person':
+            snowplow_channel = "in-person"
+        elif channel_name == 'Mobile Assist':
             snowplow_channel = "mobile-assist"
+        elif channel_name == 'Phone':
+            snowplow_channel = "phone"
         else:
             snowplow_channel = "sms"
 
-        # for chooseservices, we build a JSON array and pass it
-        chooseservice = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/chooseservice/jsonschema/3-0-0',
-                                           {"channel": snowplow_channel,
-                                            "program_id": svc_code,
-                                            "parent_id": pgm_code,
-                                            "program_name": pgm_name,
-                                            "transaction_name": svc_name})
-
-        return chooseservice
+        return SelfDescribingJson(
+            'iglu:ca.bc.gov.cfmspoc/chooseservice/jsonschema/3-0-0',
+            {
+                "channel": snowplow_channel,
+                "program_id": svc_code,
+                "parent_id": pgm_code,
+                "program_name": pgm_name,
+                "transaction_name": svc_name,
+            },
+        )
 
     @staticmethod
     def get_finish(svc_quantity, accurate_time, schema):
         inaccurate_flag = (accurate_time != 1) and (schema == "finish")
-        if schema == "finish":
-
-            finishservice = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/finish/jsonschema/2-0-0',
-                                               {"inaccurate_time": inaccurate_flag, "quantity": svc_quantity})
-        else:
-            finishservice = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/finishstopped/jsonschema/1-0-0',
-                                               {"quantity": svc_quantity})
-
-        return finishservice
+        return (
+            SelfDescribingJson(
+                'iglu:ca.bc.gov.cfmspoc/finish/jsonschema/2-0-0',
+                {"inaccurate_time": inaccurate_flag, "quantity": svc_quantity},
+            )
+            if schema == "finish"
+            else SelfDescribingJson(
+                'iglu:ca.bc.gov.cfmspoc/finishstopped/jsonschema/1-0-0',
+                {"quantity": svc_quantity},
+            )
+        )
 
     @staticmethod
     def get_appointment(appointment, schema):
@@ -267,8 +273,11 @@ class SnowPlow():
         #   Take action depending on the schema.
         if schema == "appointment_checkin":
 
-            appointment = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/' + schema + '/jsonschema/1-0-0',
-                                             {"appointment_id": appointment.appointment_id})
+            appointment = SelfDescribingJson(
+                f'iglu:ca.bc.gov.cfmspoc/{schema}/jsonschema/1-0-0',
+                {"appointment_id": appointment.appointment_id},
+            )
+
 
         else:
 
@@ -278,24 +287,34 @@ class SnowPlow():
 
             if schema == "appointment_create":
 
-                appointment = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/' + schema +'/jsonschema/1-0-0',
-                                                 {"appointment_id": appointment.appointment_id,
-                                                  "appointment_start_timestamp": utcstart,
-                                                  "appointment_end_timestamp": utcend,
-                                                  "program_id": appointment.service.service_code,
-                                                  "parent_id": appointment.service.parent.service_code,
-                                                  "program_name": appointment.service.parent.service_name,
-                                                  "transaction_name": appointment.service.service_name})
+                appointment = SelfDescribingJson(
+                    f'iglu:ca.bc.gov.cfmspoc/{schema}/jsonschema/1-0-0',
+                    {
+                        "appointment_id": appointment.appointment_id,
+                        "appointment_start_timestamp": utcstart,
+                        "appointment_end_timestamp": utcend,
+                        "program_id": appointment.service.service_code,
+                        "parent_id": appointment.service.parent.service_code,
+                        "program_name": appointment.service.parent.service_name,
+                        "transaction_name": appointment.service.service_name,
+                    },
+                )
+
             if schema == "appointment_update":
-                appointment = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/' + schema +'/jsonschema/1-0-0',
-                                                 {"appointment_id": appointment.appointment_id,
-                                                  "appointment_start_timestamp": utcstart,
-                                                  "appointment_end_timestamp": utcend,
-                                                  "status": "update",
-                                                  "program_id": appointment.service.service_code,
-                                                  "parent_id": appointment.service.parent.service_code,
-                                                  "program_name": appointment.service.parent.service_name,
-                                                  "transaction_name": appointment.service.service_name})
+                appointment = SelfDescribingJson(
+                    f'iglu:ca.bc.gov.cfmspoc/{schema}/jsonschema/1-0-0',
+                    {
+                        "appointment_id": appointment.appointment_id,
+                        "appointment_start_timestamp": utcstart,
+                        "appointment_end_timestamp": utcend,
+                        "status": "update",
+                        "program_id": appointment.service.service_code,
+                        "parent_id": appointment.service.parent.service_code,
+                        "program_name": appointment.service.parent.service_name,
+                        "transaction_name": appointment.service.service_name,
+                    },
+                )
+
 
             if schema == "appointment_delete":
                 appointment = SelfDescribingJson('iglu:ca.bc.gov.cfmspoc/appointment_update/jsonschema/1-0-0',

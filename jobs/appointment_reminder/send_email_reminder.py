@@ -67,9 +67,7 @@ def send_reminders(app):
     # ACCESS token
     access_token = get_access_token(app)
 
-    reminders = get_reminders(app=app)
-
-    if reminders:
+    if reminders := get_reminders(app=app):
         sender = app.config.get('MAIL_FROM_ID')
         app_url = app.config.get('EMAIL_APPOINTMENT_APP_URL')
         app_folder = [folder for folder in sys.path if 'api/api' in folder][0]
@@ -81,11 +79,11 @@ def send_reminders(app):
 
         appointments = reminders.json()
         email_count = 0
-        print('found {} reminders to send!'.format(len(appointments.get('appointments'))))
+        print(f"found {len(appointments.get('appointments'))} reminders to send!")
 
         for appointment in appointments.get('appointments'):
             try:
-                subject = 'Confirmation – Your appointment on {}'.format(appointment.get('day'))
+                subject = f"Confirmation – Your appointment on {appointment.get('day')}"
                 body = template.render(display_name=appointment.get('display_name'),
                                        location=appointment.get('location'),
                                        formatted_date=appointment.get('formatted_date'),

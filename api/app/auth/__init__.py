@@ -8,11 +8,7 @@ def load_user(user_id):
     if not csr:
         return None
 
-    if csr.deleted is None:
-        csr.is_active = True
-    else:
-        csr.is_active = False
-
+    csr.is_active = csr.deleted is None
     csr.is_authenticated = True
     csr.is_anonymous = False
 

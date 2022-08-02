@@ -50,23 +50,20 @@ class InvigilatorPut(Resource):
                 if invigilator_shadow_count > 0 and invigilator_shadow_count <= 2:
                     if invigilator_shadow_flag == 'Y':
                         invigilator_shadow_flag = 'N'
-                        invigilator_shadow_count -= 1
-                    else:
-                        invigilator_shadow_count -= 1
+                    invigilator_shadow_count -= 1
                 elif invigilator_shadow_count == 0:
                     invigilator_shadow_count = 0
                     invigilator_shadow_flag = 'N'
                 else:
                     return {"message": "Invigilator data is outside of range to subtract."}, 422
 
-            data = {}
-            data['shadow_count'] = invigilator_shadow_count
-            data['shadow_flag'] = invigilator_shadow_flag
+            data = {
+                'shadow_count': invigilator_shadow_count,
+                'shadow_flag': invigilator_shadow_flag,
+            }
 
             invigilator = self.invigilator_schema.load(data, instance=invigilator, partial=True)
-            warning = self.invigilator_schema.validate(data)
-
-            if warning:
+            if warning := self.invigilator_schema.validate(data):
                 logging.warning("WARNING: %s", warning)
                 return {"message": warning}, 422
 

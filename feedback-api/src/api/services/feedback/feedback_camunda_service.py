@@ -31,7 +31,7 @@ class FeedbackCamundaService(FeedbackBaseService):
         keycloak_endpoint = os.getenv('FEEDBACK_AUTH_URL')
         keycloak_client_id = os.getenv('FEEDBACK_AUTH_CLIENT_ID')
         keycloak_client_secret = os.getenv('FEEDBACK_AUTH_CLIENT_SECRET')
-        
+
         auth_payload = {"grant_type":"client_credentials",
                 "client_id":keycloak_client_id,
                 "client_secret":keycloak_client_secret}
@@ -43,7 +43,7 @@ class FeedbackCamundaService(FeedbackBaseService):
                                 headers=headers,
                                 data=json.dumps(payload), timeout=10.0)
             response_code = feedback_response.status_code
-            if (response_code != 200 and response_code != 201 and response_code != 202) :
+            if response_code not in [200, 201, 202]:
                 raise Exception('Camunda API Failure')
             return feedback_response.status_code
         except Exception as e:

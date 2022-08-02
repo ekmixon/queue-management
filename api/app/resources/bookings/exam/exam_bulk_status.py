@@ -38,17 +38,18 @@ class ExamList(Resource):
             exams = Exam.query.filter_by(upload_received_ind=0).filter(Exam.bcmp_job_id.isnot(None))
             bcmp_response = self.bcmp_service.bulk_check_exam_status(exams)
 
-            job_ids = []
-            for job in bcmp_response["jobs"]:
-                if job["jobStatus"] == "RESPONSE_UPLOADED":
-                    job_ids.append(job["jobId"])
+            job_ids = [
+                job["jobId"]
+                for job in bcmp_response["jobs"]
+                if job["jobStatus"] == "RESPONSE_UPLOADED"
+            ]
 
             my_print("job_ids to update: ")
             my_print(job_ids)
 
             exams_tobe_updated = None
 
-            if len(job_ids) != 0:
+            if job_ids:
                 exams_tobe_updated = Exam.query.filter(Exam.bcmp_job_id.in_(job_ids))
 
                 for exam in exams_tobe_updated:

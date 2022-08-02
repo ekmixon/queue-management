@@ -64,8 +64,11 @@ class AppointmentRemindersGet(Resource):
 
                     service_email_paragraph = appointment.service.email_paragraph
 
-                    service_name = appointment.service.external_service_name \
-                        if appointment.service.external_service_name else appointment.service.service_name
+                    service_name = (
+                        appointment.service.external_service_name
+                        or appointment.service.service_name
+                    )
+
 
                     reminders['appointments'].append(
                         {

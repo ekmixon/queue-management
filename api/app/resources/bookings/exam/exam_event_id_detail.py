@@ -33,12 +33,7 @@ class ExamEventIDDetail(Resource):
         try:
             exam = Exam.query.filter_by(event_id=str(id)).all()
 
-            if not exam:
-                return {'message': False}, 200
-
-            else:
-                return {'message': True}, 200
-
+            return ({'message': True}, 200) if exam else ({'message': False}, 200)
         except exc.SQLAlchemyError as error:
 
             logging.error(error, exc_info=True)
